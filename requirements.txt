@@ -1,0 +1,3 @@
+troposphere
+awacs
+boto3

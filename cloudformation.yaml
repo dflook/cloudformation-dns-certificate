@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DNS Validated ACM Certificate Example
+Resources:
+  CustomAcmCertificateLambda:
+    Properties:
+      Code:
+        ZipFile: "import time\nimport boto3\nimport hashlib\nimport json\nimport copy\n\
+          import logging\nfrom botocore.vendored import requests\nacm=boto3.client('acm')\n\
+          l=logging.getLogger()\nl.setLevel(logging.INFO)\ndef send(event):\n\tl.info(event);requests.put(event['ResponseURL'],json=event)\n\
+          def create_cert(props,i_token):\n\ta=copy.copy(props);del a['ServiceToken']\n\
+          \tif'Tags'in props:del a['Tags']\n\tif'ValidationMethod'in props:\n\t\t\
+          if props['ValidationMethod']=='DNS':\n\t\t\ttry:\n\t\t\t\thosted_zones={v['DomainName']:v['HostedZoneId']\
+          \ for v in (props['DomainValidationOptions'])}\n\t\t\t\tfor name in set([props['DomainName']]+props.get('SubjectAlternativeNames',[])):\n\
+          \t\t\t\t\tif name not in hosted_zones:raise RuntimeError('DomainValidationOptions\
+          \ missing for %s'%str(name))\n\t\t\texcept KeyError:\n\t\t\t\traise RuntimeError('DomainValidationOptions\
+          \ missing')\n\t\t\tdel a['DomainValidationOptions']\n\t\telif props['ValidationMethod']=='EMAIL':del\
+          \ a['ValidationMethod']\n\tarn=acm.request_certificate(IdempotencyToken=i_token,**a)['CertificateArn']\n\
+          \tif'Tags'in props:acm.add_tags_to_certificate(CertificateArn=arn,Tags=props['Tags'])\n\
+          \tif'ValidationMethod'in props and props['ValidationMethod']=='DNS':\n\t\
+          \tall_records_created=False\n\t\twhile not all_records_created:\n\t\t\t\
+          certificate=acm.describe_certificate(CertificateArn=arn)['Certificate'];l.info(certificate);all_records_created=True\n\
+          \t\t\tfor v in certificate['DomainValidationOptions']:\n\t\t\t\tif'ValidationStatus'not\
+          \ in v or'ResourceRecord'not in v:\n\t\t\t\t\tall_records_created=False;continue\n\
+          \t\t\t\trecords=[]\n\t\t\t\tif v['ValidationStatus']=='PENDING_VALIDATION':records.append({'Action':'UPSERT','ResourceRecordSet':{'Name':v['ResourceRecord']['Name'],'Type':v['ResourceRecord']['Type'],'TTL':60,'ResourceRecords':[{'Value':v['ResourceRecord']['Value']}]}})\n\
+          \t\t\t\tif records:\n\t\t\t\t\tresponse=boto3.client('route53').change_resource_record_sets(HostedZoneId=hosted_zones[v['DomainName']],ChangeBatch={'Comment':'Domain\
+          \ validation for %s'%arn,'Changes':records});l.info(response)\n\treturn\
+          \ arn\ndef replace_cert(event):\n\told=copy.copy(event['OldResourceProperties'])\n\
+          \tif'Tags'in old:del old['Tags']\n\tnew=copy.copy(event['ResourceProperties'])\n\
+          \tif'Tags'in new:del new['Tags']\n\treturn old!=new\ndef wait_for_issuance(arn,context):\n\
+          \twhile context.get_remaining_time_in_millis()/1000>30:\n\t\tcertificate=acm.describe_certificate(CertificateArn=arn)['Certificate'];l.info(certificate)\n\
+          \t\tif certificate['Status']=='ISSUED':return True\n\t\ttime.sleep(20)\n\
+          \treturn False\ndef reinvoke(event,context):\n\ttime.sleep(context.get_remaining_time_in_millis()/1000-30);event['I']=event.get('I',0)+1\n\
+          \tif event['I']>8:raise RuntimeError('Certificate not issued in time')\n\
+          \tboto3.client('lambda').invoke(FunctionName=context.invoked_function_arn,InvocationType='Event',Payload=json.dumps(event).encode())\n\
+          def handler(e,c):\n\tl.info(e)\n\ttry:\n\t\ti_token=hashlib.new('md5',(e['RequestId']+e['StackId']).encode()).hexdigest();props=e['ResourceProperties']\n\
+          \t\tif e['RequestType']=='Create':\n\t\t\te['PhysicalResourceId']='None';e['PhysicalResourceId']=create_cert(props,i_token)\n\
+          \t\t\tif wait_for_issuance(e['PhysicalResourceId'],c):\n\t\t\t\te['Status']='SUCCESS';return\
+          \ send(e)\n\t\t\telse:return reinvoke(e,c)\n\t\telif e['RequestType']=='Delete':\n\
+          \t\t\tif e['PhysicalResourceId']!='None':acm.delete_certificate(CertificateArn=e['PhysicalResourceId'])\n\
+          \t\t\te['Status']='SUCCESS';return send(e)\n\t\telif e['RequestType']=='Update':\n\
+          \t\t\tif replace_cert(e):\n\t\t\t\te['PhysicalResourceId']=create_cert(props,i_token)\n\
+          \t\t\t\tif not wait_for_issuance(e['PhysicalResourceId'],c):return reinvoke(e,c)\n\
+          \t\t\telse:\n\t\t\t\tif'Tags'in e['OldResourceProperties']:acm.remove_tags_from_certificate(CertificateArn=e['PhysicalResourceId'],Tags=e['OldResourceProperties']['Tags'])\n\
+          \t\t\t\tif'Tags'in props:acm.add_tags_to_certificate(CertificateArn=e['PhysicalResourceId'],Tags=props['Tags'])\n\
+          \t\t\te['Status']='SUCCESS';return send(e)\n\t\telse:raise RuntimeError('Unknown\
+          \ RequestType')\n\texcept Exception as ex:\n\t\tl.exception('');e['Status']='FAILED';e['Reason']=str(ex);return\
+          \ send(e)\n"
+      Description: Cloudformation custom resource for DNS validated certificates
+      Handler: index.handler
+      Role: !GetAtt 'CustomAcmCertificateLambdaExecutionRole.Arn'
+      Runtime: python3.6
+      Timeout: 300
+    Type: AWS::Lambda::Function
+  CustomAcmCertificateLambdaExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      Path: /
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - acm:AddTagsToCertificate
+                  - acm:DeleteCertificate
+                  - acm:DescribeCertificate
+                  - acm:RemoveTagsFromCertificate
+                  - acm:RequestCertificate
+                Effect: Allow
+                Resource:
+                  - !Join
+                    - ''
+                    - - 'arn:aws:acm:'
+                      - !Ref 'AWS::Region'
+                      - ':'
+                      - !Ref 'AWS::AccountId'
+                      - :certificate/*
+              - Action:
+                  - acm:RequestCertificate
+                Effect: Allow
+                Resource:
+                  - '*'
+              - Action:
+                  - route53:ChangeResourceRecordSets
+                Effect: Allow
+                Resource:
+                  - arn:aws:route53:::hostedzone/*
+            Version: '2012-10-17'
+          PolicyName: !Join
+            - ''
+            - - !Ref 'AWS::StackName'
+              - CustomAcmCertificateLambdaExecutionPolicy
+    Type: AWS::IAM::Role
+  ExampleCertificate:
+    Properties:
+      DomainName: test.example.com
+      DomainValidationOptions:
+        - DomainName: test.example.com
+          HostedZoneId: Z2KZ5YTUFZNC7H
+      ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+      Tags:
+        - Key: Name
+          Value: Example Certificate
+      ValidationMethod: DNS
+    Type: AWS::CloudFormation::CustomResource
