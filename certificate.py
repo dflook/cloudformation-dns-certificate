@@ -1,3 +1,10 @@
+"""
+Lambda function backing cloudformation certificate resource
+
+Post-minification, this module must be less than 4KiB.
+
+"""
+
 import time
 import boto3
 import hashlib
@@ -8,11 +15,11 @@ from botocore.vendored import requests
 
 acm = boto3.client('acm')
 
-l = logging.getLogger()
-l.setLevel(logging.INFO)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def send(event):
-    l.info(event)
+    logger.info(event)
     requests.put(event['ResponseURL'], json=event)
 
 def create_cert(props, i_token):
@@ -40,23 +47,30 @@ def create_cert(props, i_token):
         elif props['ValidationMethod'] == 'EMAIL':
             del a['ValidationMethod']
 
-    arn = acm.request_certificate(
+    return acm.request_certificate(
         IdempotencyToken=i_token,
         **a
     )['CertificateArn']
 
+def add_tags(arn, props):
     if 'Tags' in props:
         acm.add_tags_to_certificate(CertificateArn=arn, Tags=props['Tags'])
 
+def validate(arn, props):
     if 'ValidationMethod' in props and props['ValidationMethod'] == 'DNS':
+
+        hosted_zones = {v['DomainName']: v['HostedZoneId'] for v in props['DomainValidationOptions']}
 
         all_records_created = False
         while not all_records_created:
+            all_records_created = True
 
             certificate = acm.describe_certificate(CertificateArn=arn)['Certificate']
-            l.info(certificate)
+            logger.info(certificate)
 
-            all_records_created = True
+            if certificate['Status'] != 'PENDING_VALIDATION':
+                return
+
             for v in certificate['DomainValidationOptions']:
 
                 if 'ValidationStatus' not in v or 'ResourceRecord' not in v:
@@ -86,9 +100,9 @@ def create_cert(props, i_token):
                         }
                     )
 
-                    l.info(response)
+                    logger.info(response)
 
-    return arn
+            time.sleep(1)
 
 
 def replace_cert(event):
@@ -107,23 +121,26 @@ def wait_for_issuance(arn, context):
     while (context.get_remaining_time_in_millis() / 1000) > 30:
 
         certificate = acm.describe_certificate(CertificateArn=arn)['Certificate']
-        l.info(certificate)
+        logger.info(certificate)
         if certificate['Status'] == 'ISSUED':
             return True
+        elif certificate['Status'] == 'FAILED':
+            raise RuntimeError(certificate.get('FailureReason', 'Failed to issue certificate'))
 
-        time.sleep(20)
+        time.sleep(5)
 
     return False
 
 
 def reinvoke(event, context):
-    time.sleep((context.get_remaining_time_in_millis() / 1000) - 30)
 
-    # Only continue to reinvoke for 8 iterations - at 300 sec timeout thats 40 mins
+    # Only continue to reinvoke for 8 iterations
     event['I'] = event.get('I', 0) + 1
     if event['I'] > 8:
         raise RuntimeError('Certificate not issued in time')
 
+    logger.info('Reinvoking for the %i time' % event['I'])
+    logger.info(event)
     boto3.client('lambda').invoke(
         FunctionName=context.invoked_function_arn,
         InvocationType='Event',
@@ -131,51 +148,53 @@ def reinvoke(event, context):
     )
 
 
-def handler(e, c):
-    l.info(e)
+def handler(event, context):
+    logger.info(event)
     try:
-        i_token = hashlib.new('md5', (e['RequestId'] + e['StackId']).encode()).hexdigest()
-        props = e['ResourceProperties']
+        i_token = hashlib.new('md5', (event['RequestId'] + event['StackId']).encode()).hexdigest()
+        props = event['ResourceProperties']
 
-        if e['RequestType'] == 'Create':
-            e['PhysicalResourceId'] = 'None'
-            e['PhysicalResourceId'] = create_cert(props, i_token)
+        if event['RequestType'] == 'Create':
+            event['PhysicalResourceId'] = 'None'
+            event['PhysicalResourceId'] = create_cert(props, i_token)
+            add_tags(event['PhysicalResourceId'], props)
+            validate(event['PhysicalResourceId'], props)
 
-            if wait_for_issuance(e['PhysicalResourceId'], c):
-                e['Status'] = 'SUCCESS'
-                return send(e)
+            if wait_for_issuance(event['PhysicalResourceId'], context):
+                event['Status'] = 'SUCCESS'
+                return send(event)
             else:
-                return reinvoke(e, c)
+                return reinvoke(event, context)
 
-        elif e['RequestType'] == 'Delete':
-            if e['PhysicalResourceId'] != 'None':
-                acm.delete_certificate(CertificateArn=e['PhysicalResourceId'])
-            e['Status'] = 'SUCCESS'
-            return send(e)
+        elif event['RequestType'] == 'Delete':
+            if event['PhysicalResourceId'] != 'None':
+                acm.delete_certificate(CertificateArn=event['PhysicalResourceId'])
+            event['Status'] = 'SUCCESS'
+            return send(event)
 
-        elif e['RequestType'] == 'Update':
+        elif event['RequestType'] == 'Update':
 
-            if replace_cert(e):
-                e['PhysicalResourceId'] = create_cert(props, i_token)
+            if replace_cert(event):
+                event['PhysicalResourceId'] = create_cert(props, i_token)
+                add_tags(event['PhysicalResourceId'], props)
+                validate(event['PhysicalResourceId'], props)
 
-                if not wait_for_issuance(e['PhysicalResourceId'], c):
-                    return reinvoke(e, c)
+                if not wait_for_issuance(event['PhysicalResourceId'], context):
+                    return reinvoke(event, context)
             else:
-                if 'Tags' in e['OldResourceProperties']:
-                    acm.remove_tags_from_certificate(CertificateArn=e['PhysicalResourceId'],
-                                                     Tags=e['OldResourceProperties']['Tags'])
+                if 'Tags' in event['OldResourceProperties']:
+                    acm.remove_tags_from_certificate(CertificateArn=event['PhysicalResourceId'],
+                                                     Tags=event['OldResourceProperties']['Tags'])
 
-                if 'Tags' in props:
-                    acm.add_tags_to_certificate(CertificateArn=e['PhysicalResourceId'],
-                                                Tags=props['Tags'])
+                add_tags(event['PhysicalResourceId'], props)
 
-            e['Status'] = 'SUCCESS'
-            return send(e)
+            event['Status'] = 'SUCCESS'
+            return send(event)
         else:
             raise RuntimeError('Unknown RequestType')
 
     except Exception as ex:
-        l.exception('')
-        e['Status'] = 'FAILED'
-        e['Reason'] = str(ex)
-        return send(e)
+        logger.exception('')
+        event['Status'] = 'FAILED'
+        event['Reason'] = str(ex)
+        return send(event)

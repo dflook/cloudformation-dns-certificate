@@ -1,3 +1,25 @@
+b='PhysicalResourceId'
+c='Tags'
+d='Status'
+e='ValidationMethod'
+f='DomainName'
+g='DomainValidationOptions'
+h='ResourceRecord'
+i='I'
+j='OldResourceProperties'
+k='RequestType'
+l='SUCCESS'
+m='DNS'
+n='HostedZoneId'
+o='Certificate'
+p='PENDING_VALIDATION'
+q='ValidationStatus'
+r='Name'
+s='Type'
+t='Value'
+u='ResourceProperties'
+w='FAILED'
+x='None'
 import time
 import boto3
 import hashlib
@@ -6,73 +28,76 @@ import copy
 import logging
 from botocore.vendored import requests
 acm=boto3.client('acm')
-l=logging.getLogger()
-l.setLevel(logging.INFO)
+logger=logging.getLogger()
+logger.setLevel(logging.INFO)
 def send(event):
-	l.info(event);requests.put(event['ResponseURL'],json=event)
+	logger.info(event);requests.put(event['ResponseURL'],json=event)
 def create_cert(props,i_token):
 	a=copy.copy(props);del a['ServiceToken']
-	if'Tags'in props:del a['Tags']
-	if'ValidationMethod'in props:
-		if props['ValidationMethod']=='DNS':
+	if c in props:del a[c]
+	if e in props:
+		if props[e]==m:
 			try:
-				hosted_zones={v['DomainName']:v['HostedZoneId'] for v in (props['DomainValidationOptions'])}
-				for name in set([props['DomainName']]+props.get('SubjectAlternativeNames',[])):
+				hosted_zones={v[f]:v[n]for v in (props[g])}
+				for name in set([props[f]]+props.get('SubjectAlternativeNames',[])):
 					if name not in hosted_zones:raise RuntimeError('DomainValidationOptions missing for %s'%str(name))
-			except KeyError:
-				raise RuntimeError('DomainValidationOptions missing')
-			del a['DomainValidationOptions']
-		elif props['ValidationMethod']=='EMAIL':del a['ValidationMethod']
-	arn=acm.request_certificate(IdempotencyToken=i_token,**a)['CertificateArn']
-	if'Tags'in props:acm.add_tags_to_certificate(CertificateArn=arn,Tags=props['Tags'])
-	if'ValidationMethod'in props and props['ValidationMethod']=='DNS':
-		all_records_created=False
+			except KeyError:raise RuntimeError('DomainValidationOptions missing')
+			del a[g]
+		elif props[e]=='EMAIL':del a[e]
+	return acm.request_certificate(IdempotencyToken=i_token,**a)['CertificateArn']
+def add_tags(arn,props):
+	if c in props:acm.add_tags_to_certificate(CertificateArn=arn,Tags=props[c])
+def validate(arn,props):
+	if e in props and props[e]==m:
+		hosted_zones={v[f]:v[n]for v in (props[g])};all_records_created=False
 		while not all_records_created:
-			certificate=acm.describe_certificate(CertificateArn=arn)['Certificate'];l.info(certificate);all_records_created=True
-			for v in certificate['DomainValidationOptions']:
-				if'ValidationStatus'not in v or'ResourceRecord'not in v:
+			all_records_created=True;certificate=acm.describe_certificate(CertificateArn=arn)[o];logger.info(certificate)
+			if certificate[d]!=p:return
+			for v in certificate[g]:
+				if q not in v or h not in v:
 					all_records_created=False;continue
 				records=[]
-				if v['ValidationStatus']=='PENDING_VALIDATION':records.append({'Action':'UPSERT','ResourceRecordSet':{'Name':v['ResourceRecord']['Name'],'Type':v['ResourceRecord']['Type'],'TTL':60,'ResourceRecords':[{'Value':v['ResourceRecord']['Value']}]}})
+				if v[q]==p:records.append({'Action':'UPSERT','ResourceRecordSet':{r:v[h][r],s:v[h][s],'TTL':60,'ResourceRecords':[{t:v[h][t]}]}})
 				if records:
-					response=boto3.client('route53').change_resource_record_sets(HostedZoneId=hosted_zones[v['DomainName']],ChangeBatch={'Comment':'Domain validation for %s'%arn,'Changes':records});l.info(response)
-	return arn
+					response=boto3.client('route53').change_resource_record_sets(HostedZoneId=hosted_zones[v[f]],ChangeBatch={'Comment':'Domain validation for %s'%arn,'Changes':records});logger.info(response)
+			time.sleep(1)
 def replace_cert(event):
-	old=copy.copy(event['OldResourceProperties'])
-	if'Tags'in old:del old['Tags']
-	new=copy.copy(event['ResourceProperties'])
-	if'Tags'in new:del new['Tags']
+	old=copy.copy(event[j])
+	if c in old:del old[c]
+	new=copy.copy(event[u])
+	if c in new:del new[c]
 	return old!=new
 def wait_for_issuance(arn,context):
 	while context.get_remaining_time_in_millis()/1000>30:
-		certificate=acm.describe_certificate(CertificateArn=arn)['Certificate'];l.info(certificate)
-		if certificate['Status']=='ISSUED':return True
-		time.sleep(20)
+		certificate=acm.describe_certificate(CertificateArn=arn)[o];logger.info(certificate)
+		if certificate[d]=='ISSUED':return True
+		elif certificate[d]==w:raise RuntimeError(certificate.get('FailureReason','Failed to issue certificate'))
+		time.sleep(5)
 	return False
 def reinvoke(event,context):
-	time.sleep(context.get_remaining_time_in_millis()/1000-30);event['I']=event.get('I',0)+1
-	if event['I']>8:raise RuntimeError('Certificate not issued in time')
-	boto3.client('lambda').invoke(FunctionName=context.invoked_function_arn,InvocationType='Event',Payload=json.dumps(event).encode())
-def handler(e,c):
-	l.info(e)
+	event[i]=event.get(i,0)+1
+	if event[i]>8:raise RuntimeError('Certificate not issued in time')
+	logger.info('Reinvoking for the %i time'%event[i]);logger.info(event);boto3.client('lambda').invoke(FunctionName=context.invoked_function_arn,InvocationType='Event',Payload=json.dumps(event).encode())
+def handler(event,context):
+	logger.info(event)
 	try:
-		i_token=hashlib.new('md5',(e['RequestId']+e['StackId']).encode()).hexdigest();props=e['ResourceProperties']
-		if e['RequestType']=='Create':
-			e['PhysicalResourceId']='None';e['PhysicalResourceId']=create_cert(props,i_token)
-			if wait_for_issuance(e['PhysicalResourceId'],c):
-				e['Status']='SUCCESS';return send(e)
-			else:return reinvoke(e,c)
-		elif e['RequestType']=='Delete':
-			if e['PhysicalResourceId']!='None':acm.delete_certificate(CertificateArn=e['PhysicalResourceId'])
-			e['Status']='SUCCESS';return send(e)
-		elif e['RequestType']=='Update':
-			if replace_cert(e):
-				e['PhysicalResourceId']=create_cert(props,i_token)
-				if not wait_for_issuance(e['PhysicalResourceId'],c):return reinvoke(e,c)
+		i_token=hashlib.new('md5',(event['RequestId']+event['StackId']).encode()).hexdigest();props=event[u]
+		if event[k]=='Create':
+			event[b]=x;event[b]=create_cert(props,i_token);add_tags(event[b],props);validate(event[b],props)
+			if wait_for_issuance(event[b],context):
+				event[d]=l;return send(event)
+			else:return reinvoke(event,context)
+		elif event[k]=='Delete':
+			if event[b]!=x:acm.delete_certificate(CertificateArn=event[b])
+			event[d]=l;return send(event)
+		elif event[k]=='Update':
+			if replace_cert(event):
+				event[b]=create_cert(props,i_token);add_tags(event[b],props);validate(event[b],props)
+				if not wait_for_issuance(event[b],context):return reinvoke(event,context)
 			else:
-				if'Tags'in e['OldResourceProperties']:acm.remove_tags_from_certificate(CertificateArn=e['PhysicalResourceId'],Tags=e['OldResourceProperties']['Tags'])
-				if'Tags'in props:acm.add_tags_to_certificate(CertificateArn=e['PhysicalResourceId'],Tags=props['Tags'])
-			e['Status']='SUCCESS';return send(e)
+				if c in event[j]:acm.remove_tags_from_certificate(CertificateArn=event[b],Tags=event[j][c])
+				add_tags(event[b],props)
+			event[d]=l;return send(event)
 		else:raise RuntimeError('Unknown RequestType')
 	except Exception as ex:
-		l.exception('');e['Status']='FAILED';e['Reason']=str(ex);return send(e)
+		logger.exception('');event[d]=w;event['Reason']=str(ex);return send(event)
