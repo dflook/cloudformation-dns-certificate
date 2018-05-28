@@ -1,4 +1,4 @@
-from troposphere import Template, Join, AWS_STACK_NAME, Ref, AWS_REGION, AWS_ACCOUNT_ID, GetAtt
+from troposphere import Template, Join, AWS_STACK_NAME, Ref, AWS_REGION, AWS_ACCOUNT_ID, GetAtt, Output
 import troposphere.iam as iam
 import troposphere.awslambda as awslambda
 from awacs.aws import PolicyDocument, Statement, Allow, Action, Principal
@@ -74,7 +74,7 @@ def create_template():
         Description='Cloudformation custom resource for DNS validated certificates'
     ))
 
-    template.add_resource(CustomResource('ExampleCertificate',
+    certificate = template.add_resource(CustomResource('ExampleCertificate',
         ServiceToken=GetAtt(certificate_lambda, 'Arn'),
         ValidationMethod='DNS',
         DomainName='test.example.com',
@@ -88,6 +88,12 @@ def create_template():
             'Key': 'Name',
             'Value': 'Example Certificate'
         }]
+    ))
+
+    template.add_output(Output(
+        "CertificateARN",
+        Value=Ref(certificate),
+        Description="The ARN of the example certificate"
     ))
 
     return template

@@ -7,11 +7,9 @@ a Route 53 hosted zone.
 
 ## Usage
 
-It should behave identically to AWS::CertificateManager::Certificate (see
-https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html).
+It should behave identically to [AWS::CertificateManager::Certificate](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html).
 
-The additional VerificationMethod property is supported which may be 'EMAIL' or 'DNS', as in the API documentation
-(https://docs.aws.amazon.com/acm/latest/APIReference/API_RequestCertificate.html#ACM-RequestCertificate-request-ValidationMethod).
+The additional VerificationMethod property is supported which may be 'EMAIL' or 'DNS', as in the [API documentation](https://docs.aws.amazon.com/acm/latest/APIReference/API_RequestCertificate.html#ACM-RequestCertificate-request-ValidationMethod).
 
 When using 'DNS' as the VerificationMethod the DomainValidation property becomes required. The DomainValidationOption
 values no longer have a ValidationDomain but instead a HostedZoneId. The HostedZoneId should be the zone to create
@@ -42,3 +40,7 @@ The certificate resource looks like:
               Value: Example Certificate
           ValidationMethod: DNS
         Type: AWS::CloudFormation::CustomResource
+
+As with AWS::CertificateManager::Certificate providing the logical ID of the resource to the Ref function returns the certificate ARN.
+
+For example (in yaml): `!Ref 'ExampleCertificate'`
