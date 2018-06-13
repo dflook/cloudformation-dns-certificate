@@ -9,52 +9,53 @@ Resources:
     Properties:
       Code:
         ZipFile: "b='PhysicalResourceId'\nc='Tags'\nd='Status'\ne='ValidationMethod'\n\
-          f='DomainName'\ng='DomainValidationOptions'\nh='ResourceRecord'\ni='I'\n\
-          j='OldResourceProperties'\nk='RequestType'\nl='SUCCESS'\nm='DNS'\nn='HostedZoneId'\n\
-          o='Certificate'\np='PENDING_VALIDATION'\nq='ValidationStatus'\nr='Name'\n\
-          s='Type'\nt='Value'\nu='ResourceProperties'\nw='FAILED'\nx='None'\nimport\
-          \ time\nimport boto3\nimport hashlib\nimport json\nimport copy\nimport logging\n\
-          from botocore.vendored import requests\nacm=boto3.client('acm')\nlogger=logging.getLogger()\n\
-          logger.setLevel(logging.INFO)\ndef send(event):\n\tlogger.info(event);requests.put(event['ResponseURL'],json=event)\n\
+          f='.'\ng='ResourceRecord'\nh='I'\ni='DomainName'\nj='DomainValidationOptions'\n\
+          k='OldResourceProperties'\nm='RequestType'\nn='SUCCESS'\no='DNS'\np='Certificate'\n\
+          q='PENDING_VALIDATION'\nr='ValidationStatus'\ns='Name'\nt='Type'\nu='Value'\n\
+          w='ResourceProperties'\nx='FAILED'\ny='None'\nimport time\nimport boto3\n\
+          import hashlib\nimport json\nimport copy\nimport logging\nfrom botocore.vendored\
+          \ import requests\nacm=boto3.client('acm')\nl=logging.getLogger()\nl.setLevel(logging.INFO)\n\
+          def send(event):\n\tl.info(event);requests.put(event['ResponseURL'],json=event)\n\
           def create_cert(props,i_token):\n\ta=copy.copy(props);del a['ServiceToken']\n\
-          \tif c in props:del a[c]\n\tif e in props:\n\t\tif props[e]==m:\n\t\t\t\
-          try:\n\t\t\t\thosted_zones={v[f]:v[n]for v in (props[g])}\n\t\t\t\tfor name\
-          \ in set([props[f]]+props.get('SubjectAlternativeNames',[])):\n\t\t\t\t\t\
-          if name not in hosted_zones:raise RuntimeError('DomainValidationOptions\
-          \ missing for %s'%str(name))\n\t\t\texcept KeyError:raise RuntimeError('DomainValidationOptions\
-          \ missing')\n\t\t\tdel a[g]\n\t\telif props[e]=='EMAIL':del a[e]\n\treturn\
-          \ acm.request_certificate(IdempotencyToken=i_token,**a)['CertificateArn']\n\
+          \tif c in props:del a[c]\n\tif e in props:\n\t\tif props[e]==o:\n\t\t\t\
+          try:\n\t\t\t\tfor name in set([props[i]]+props.get('SubjectAlternativeNames',[])):get_zone_for(name,props)\n\
+          \t\t\texcept KeyError:raise RuntimeError('DomainValidationOptions missing')\n\
+          \t\t\tdel a[j]\n\t\telif props[e]=='EMAIL':del a[e]\n\treturn acm.request_certificate(IdempotencyToken=i_token,**a)['CertificateArn']\n\
           def add_tags(arn,props):\n\tif c in props:acm.add_tags_to_certificate(CertificateArn=arn,Tags=props[c])\n\
-          def validate(arn,props):\n\tif e in props and props[e]==m:\n\t\thosted_zones={v[f]:v[n]for\
-          \ v in (props[g])};all_records_created=False\n\t\twhile not all_records_created:\n\
-          \t\t\tall_records_created=True;certificate=acm.describe_certificate(CertificateArn=arn)[o];logger.info(certificate)\n\
-          \t\t\tif certificate[d]!=p:return\n\t\t\tfor v in certificate[g]:\n\t\t\t\
-          \tif q not in v or h not in v:\n\t\t\t\t\tall_records_created=False;continue\n\
-          \t\t\t\trecords=[]\n\t\t\t\tif v[q]==p:records.append({'Action':'UPSERT','ResourceRecordSet':{r:v[h][r],s:v[h][s],'TTL':60,'ResourceRecords':[{t:v[h][t]}]}})\n\
-          \t\t\t\tif records:\n\t\t\t\t\tresponse=boto3.client('route53').change_resource_record_sets(HostedZoneId=hosted_zones[v[f]],ChangeBatch={'Comment':'Domain\
-          \ validation for %s'%arn,'Changes':records});logger.info(response)\n\t\t\
-          \ttime.sleep(1)\ndef replace_cert(event):\n\told=copy.copy(event[j])\n\t\
-          if c in old:del old[c]\n\tnew=copy.copy(event[u])\n\tif c in new:del new[c]\n\
-          \treturn old!=new\ndef wait_for_issuance(arn,context):\n\twhile context.get_remaining_time_in_millis()/1000>30:\n\
-          \t\tcertificate=acm.describe_certificate(CertificateArn=arn)[o];logger.info(certificate)\n\
-          \t\tif certificate[d]=='ISSUED':return True\n\t\telif certificate[d]==w:raise\
+          def get_zone_for(name,props):\n\tname=name.rstrip(f);hosted_zones={v[i].rstrip(f):v['HostedZoneId']for\
+          \ v in (props[j])};components=name.split(f)\n\twhile len(components):\n\t\
+          \tif f.join(components)in hosted_zones:return hosted_zones[f.join(components)]\n\
+          \t\tcomponents=components[1:]\n\traise RuntimeError('DomainValidationOptions\
+          \ missing for %s'%str(name))\ndef validate(arn,props):\n\tif e in props\
+          \ and props[e]==o:\n\t\tall_records_created=False\n\t\twhile not all_records_created:\n\
+          \t\t\tall_records_created=True;certificate=acm.describe_certificate(CertificateArn=arn)[p];l.info(certificate)\n\
+          \t\t\tif certificate[d]!=q:return\n\t\t\tfor v in certificate[j]:\n\t\t\t\
+          \tif r not in v or g not in v:\n\t\t\t\t\tall_records_created=False;continue\n\
+          \t\t\t\trecords=[]\n\t\t\t\tif v[r]==q:records.append({'Action':'UPSERT','ResourceRecordSet':{s:v[g][s],t:v[g][t],'TTL':60,'ResourceRecords':[{u:v[g][u]}]}})\n\
+          \t\t\t\tif records:\n\t\t\t\t\tresponse=boto3.client('route53').change_resource_record_sets(HostedZoneId=get_zone_for(v[i],props),ChangeBatch={'Comment':'Domain\
+          \ validation for %s'%arn,'Changes':records});l.info(response)\n\t\t\ttime.sleep(1)\n\
+          def replace_cert(event):\n\told=copy.copy(event[k])\n\tif c in old:del old[c]\n\
+          \tnew=copy.copy(event[w])\n\tif c in new:del new[c]\n\treturn old!=new\n\
+          def wait_for_issuance(arn,context):\n\twhile context.get_remaining_time_in_millis()/1000>30:\n\
+          \t\tcertificate=acm.describe_certificate(CertificateArn=arn)[p];l.info(certificate)\n\
+          \t\tif certificate[d]=='ISSUED':return True\n\t\telif certificate[d]==x:raise\
           \ RuntimeError(certificate.get('FailureReason','Failed to issue certificate'))\n\
-          \t\ttime.sleep(5)\n\treturn False\ndef reinvoke(event,context):\n\tevent[i]=event.get(i,0)+1\n\
-          \tif event[i]>8:raise RuntimeError('Certificate not issued in time')\n\t\
-          logger.info('Reinvoking for the %i time'%event[i]);logger.info(event);boto3.client('lambda').invoke(FunctionName=context.invoked_function_arn,InvocationType='Event',Payload=json.dumps(event).encode())\n\
-          def handler(event,context):\n\tlogger.info(event)\n\ttry:\n\t\ti_token=hashlib.new('md5',(event['RequestId']+event['StackId']).encode()).hexdigest();props=event[u]\n\
-          \t\tif event[k]=='Create':\n\t\t\tevent[b]=x;event[b]=create_cert(props,i_token);add_tags(event[b],props);validate(event[b],props)\n\
-          \t\t\tif wait_for_issuance(event[b],context):\n\t\t\t\tevent[d]=l;return\
-          \ send(event)\n\t\t\telse:return reinvoke(event,context)\n\t\telif event[k]=='Delete':\n\
-          \t\t\tif event[b]!=x:acm.delete_certificate(CertificateArn=event[b])\n\t\
-          \t\tevent[d]=l;return send(event)\n\t\telif event[k]=='Update':\n\t\t\t\
+          \t\ttime.sleep(5)\n\treturn False\ndef reinvoke(event,context):\n\tevent[h]=event.get(h,0)+1\n\
+          \tif event[h]>8:raise RuntimeError('Certificate not issued in time')\n\t\
+          l.info('Reinvoking for the %i time'%event[h]);l.info(event);boto3.client('lambda').invoke(FunctionName=context.invoked_function_arn,InvocationType='Event',Payload=json.dumps(event).encode())\n\
+          def handler(event,context):\n\tl.info(event)\n\ttry:\n\t\ti_token=hashlib.new('md5',(event['RequestId']+event['StackId']).encode()).hexdigest();props=event[w]\n\
+          \t\tif event[m]=='Create':\n\t\t\tevent[b]=y;event[b]=create_cert(props,i_token);add_tags(event[b],props);validate(event[b],props)\n\
+          \t\t\tif wait_for_issuance(event[b],context):\n\t\t\t\tevent[d]=n;return\
+          \ send(event)\n\t\t\telse:return reinvoke(event,context)\n\t\telif event[m]=='Delete':\n\
+          \t\t\tif event[b]!=y:acm.delete_certificate(CertificateArn=event[b])\n\t\
+          \t\tevent[d]=n;return send(event)\n\t\telif event[m]=='Update':\n\t\t\t\
           if replace_cert(event):\n\t\t\t\tevent[b]=create_cert(props,i_token);add_tags(event[b],props);validate(event[b],props)\n\
           \t\t\t\tif not wait_for_issuance(event[b],context):return reinvoke(event,context)\n\
-          \t\t\telse:\n\t\t\t\tif c in event[j]:acm.remove_tags_from_certificate(CertificateArn=event[b],Tags=event[j][c])\n\
-          \t\t\t\tadd_tags(event[b],props)\n\t\t\tevent[d]=l;return send(event)\n\t\
+          \t\t\telse:\n\t\t\t\tif c in event[k]:acm.remove_tags_from_certificate(CertificateArn=event[b],Tags=event[k][c])\n\
+          \t\t\t\tadd_tags(event[b],props)\n\t\t\tevent[d]=n;return send(event)\n\t\
           \telse:raise RuntimeError('Unknown RequestType')\n\texcept Exception as\
-          \ ex:\n\t\tlogger.exception('');event[d]=w;event['Reason']=str(ex);return\
-          \ send(event)\n"
+          \ ex:\n\t\tl.exception('');event[d]=x;event['Reason']=str(ex);return send(event)\n\
+          \n"
       Description: Cloudformation custom resource for DNS validated certificates
       Handler: index.handler
       Role: !GetAtt 'CustomAcmCertificateLambdaExecutionRole.Arn'

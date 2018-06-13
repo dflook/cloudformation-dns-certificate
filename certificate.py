@@ -15,12 +15,14 @@ from botocore.vendored import requests
 
 acm = boto3.client('acm')
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+l = logging.getLogger()
+l.setLevel(logging.INFO)
+
 
 def send(event):
-    logger.info(event)
+    l.info(event)
     requests.put(event['ResponseURL'], json=event)
+
 
 def create_cert(props, i_token):
     a = copy.copy(props)
@@ -34,11 +36,8 @@ def create_cert(props, i_token):
         if props['ValidationMethod'] == 'DNS':
 
             try:
-                hosted_zones = {v['DomainName']: v['HostedZoneId'] for v in props['DomainValidationOptions']}
-
                 for name in set([props['DomainName']] + props.get('SubjectAlternativeNames', [])):
-                    if name not in hosted_zones:
-                        raise RuntimeError('DomainValidationOptions missing for %s' % str(name))
+                    get_zone_for(name, props)
             except KeyError:
                 raise RuntimeError('DomainValidationOptions missing')
 
@@ -52,21 +51,36 @@ def create_cert(props, i_token):
         **a
     )['CertificateArn']
 
+
 def add_tags(arn, props):
     if 'Tags' in props:
         acm.add_tags_to_certificate(CertificateArn=arn, Tags=props['Tags'])
 
+
+def get_zone_for(name, props):
+    name = name.rstrip('.')
+    hosted_zones = {v['DomainName'].rstrip('.'): v['HostedZoneId'] for v in props['DomainValidationOptions']}
+
+    components = name.split('.')
+
+    while len(components):
+        if '.'.join(components) in hosted_zones:
+            return hosted_zones['.'.join(components)]
+
+        components = components[1:]
+
+    raise RuntimeError('DomainValidationOptions missing for %s' % str(name))
+
+
 def validate(arn, props):
     if 'ValidationMethod' in props and props['ValidationMethod'] == 'DNS':
-
-        hosted_zones = {v['DomainName']: v['HostedZoneId'] for v in props['DomainValidationOptions']}
 
         all_records_created = False
         while not all_records_created:
             all_records_created = True
 
             certificate = acm.describe_certificate(CertificateArn=arn)['Certificate']
-            logger.info(certificate)
+            l.info(certificate)
 
             if certificate['Status'] != 'PENDING_VALIDATION':
                 return
@@ -93,14 +107,14 @@ def validate(arn, props):
 
                 if records:
                     response = boto3.client('route53').change_resource_record_sets(
-                        HostedZoneId=hosted_zones[v['DomainName']],
+                        HostedZoneId=get_zone_for(v['DomainName'], props),
                         ChangeBatch={
                             'Comment': 'Domain validation for %s' % arn,
                             'Changes': records
                         }
                     )
 
-                    logger.info(response)
+                    l.info(response)
 
             time.sleep(1)
 
@@ -121,7 +135,7 @@ def wait_for_issuance(arn, context):
     while (context.get_remaining_time_in_millis() / 1000) > 30:
 
         certificate = acm.describe_certificate(CertificateArn=arn)['Certificate']
-        logger.info(certificate)
+        l.info(certificate)
         if certificate['Status'] == 'ISSUED':
             return True
         elif certificate['Status'] == 'FAILED':
@@ -133,14 +147,13 @@ def wait_for_issuance(arn, context):
 
 
 def reinvoke(event, context):
-
     # Only continue to reinvoke for 8 iterations
     event['I'] = event.get('I', 0) + 1
     if event['I'] > 8:
         raise RuntimeError('Certificate not issued in time')
 
-    logger.info('Reinvoking for the %i time' % event['I'])
-    logger.info(event)
+    l.info('Reinvoking for the %i time' % event['I'])
+    l.info(event)
     boto3.client('lambda').invoke(
         FunctionName=context.invoked_function_arn,
         InvocationType='Event',
@@ -149,7 +162,7 @@ def reinvoke(event, context):
 
 
 def handler(event, context):
-    logger.info(event)
+    l.info(event)
     try:
         i_token = hashlib.new('md5', (event['RequestId'] + event['StackId']).encode()).hexdigest()
         props = event['ResourceProperties']
@@ -194,7 +207,7 @@ def handler(event, context):
             raise RuntimeError('Unknown RequestType')
 
     except Exception as ex:
-        logger.exception('')
+        l.exception('')
         event['Status'] = 'FAILED'
         event['Reason'] = str(ex)
         return send(event)
