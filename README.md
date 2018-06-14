@@ -15,8 +15,8 @@ When using 'DNS' as the VerificationMethod the DomainValidation property becomes
 values no longer have a ValidationDomain but instead a HostedZoneId. The HostedZoneId should be the zone to create
 the DNS validation records in.
 
-Certificates may take up to 30 minutes to be issued, but typically takes ~3 minutes. The Certificate resource remains 
-CREATING until the certificate is issued.
+Certificates may take up to 30 minutes to be issued, but typically takes ~3 minutes. The Certificate resource remains as 
+CREATE_IN_PROGRESS until the certificate is issued.
 
 To use this custom resource, copy the CustomAcmCertificateLambda and CustomAcmCertificateLambdaExecutionRole resources
 into your template. You can then create certificate resources of Type: AWS::CloudFormation::CustomResource using the
@@ -30,17 +30,80 @@ The certificate resource looks like:
 
     ExampleCertificate:
         Properties:
-          DomainName: test.example.com
+          DomainName: test.example.com        
+          ValidationMethod: DNS
           DomainValidationOptions:
             - DomainName: test.example.com
               HostedZoneId: Z2KZ5YTUFZNC7H
-          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
           Tags:
             - Key: Name
               Value: Example Certificate
-          ValidationMethod: DNS
+          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
         Type: AWS::CloudFormation::CustomResource
 
 As with AWS::CertificateManager::Certificate providing the logical ID of the resource to the Ref function returns the certificate ARN.
 
 For example (in yaml): `!Ref 'ExampleCertificate'`
+
+### SubjectAlternativeNames
+
+Additional names can be added to the certificate using the SubjectAlternativeNames property. A DomainValidationOptions entry should be 
+present for each name. A DomainValidationOptions for a parent domain can be used for names that have the same HostedZoneId.
+For example:
+
+    ExampleCertificate:
+        Properties:
+          DomainName: example.com
+          SubjectAlternativeNames:
+            - additional.example.com
+            - another.example.com    
+          ValidationMethod: DNS
+          DomainValidationOptions:
+            - DomainName: example.com
+              HostedZoneId: Z2KZ5YTUFZNC7H
+          Tags:
+            - Key: Name
+              Value: Example Certificate
+          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+    Type: AWS::CloudFormation::CustomResource
+
+### Multiple Hosted Zones
+
+Names from multiple hosted zones can be used by adding DomainValidationOptions for each of the hosted zones.
+For example:
+
+    ExampleCertificate:
+        Properties:
+          DomainName: example.com
+          SubjectAlternativeNames:
+            - additional.example.org
+          ValidationMethod: DNS
+          DomainValidationOptions:
+            - DomainName: example.com
+              HostedZoneId: Z2KZ5YTUFZNC7H
+            - DomainName: example.org
+              HostedZoneId: ZEJZ9DIN47IQN              
+          Tags:
+            - Key: Name
+              Value: Example Certificate
+          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+    Type: AWS::CloudFormation::CustomResource
+
+### Wildcards
+
+Wildcards can be used normally. A certificate for a name and all subdomains for example:
+
+    ExampleCertificate:
+        Properties:
+          DomainName: example.com   
+          SubjectAlternativeNames:
+            - *.example.com               
+          ValidationMethod: DNS
+          DomainValidationOptions:
+            - DomainName: example.com
+              HostedZoneId: Z2KZ5YTUFZNC7H
+          Tags:
+            - Key: Name
+              Value: Example Certificate
+          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+        Type: AWS::CloudFormation::CustomResource
