@@ -6,6 +6,9 @@ Outputs:
     Value: !Ref 'ExampleCertificate'
 Resources:
   CustomAcmCertificateLambda:
+    Metadata:
+      Source: https://github.com/dflook/cloudformation-dns-certificate
+      Version: 1.2.0
     Properties:
       Code:
         ZipFile: "b='PhysicalResourceId'\nc='Tags'\nd='Status'\ne='ValidationMethod'\n\

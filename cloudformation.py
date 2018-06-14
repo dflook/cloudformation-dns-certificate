@@ -71,7 +71,11 @@ def create_template():
         Handler='index.handler',
         Timeout=300,
         Role=GetAtt(lambda_role, 'Arn'),
-        Description='Cloudformation custom resource for DNS validated certificates'
+        Description='Cloudformation custom resource for DNS validated certificates',
+        Metadata={
+            'Source': 'https://github.com/dflook/cloudformation-dns-certificate',
+            'Version': '1.2.0'
+        }
     ))
 
     certificate = template.add_resource(CustomResource('ExampleCertificate',
