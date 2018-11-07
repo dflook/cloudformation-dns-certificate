@@ -22,10 +22,22 @@ To use this custom resource, copy the CustomAcmCertificateLambda and CustomAcmCe
 into your template. You can then create certificate resources of Type: AWS::CloudFormation::CustomResource using the
 properties you expect. Remember to add a ServiceToken property to the resource which references the CustomAcmCertificateLambda arn.
 
-## Examples
+### Troposphere
+
+If you are using troposphere you can install this resource as an extension using pip:
+
+$ pip install troposphere_dns_certificate
+
+You can then import the Certificate resource from troposphere_dns_certificate.certificatemanager instead of 
+troposphere.certificatemanager. 
 
 cloudformation.py is an example of using troposphere to create a template with a Certificate resource. 
-The cloudformation.json and cloudformation.yaml files are generated from this as examples which could be used directly.
+
+If you are not using troposphere, you can simply copy the CustomAcmCertificateLambda and CustomAcmCertificateLambdaExecutionRole
+resources from the cloudformation.json or cloudformation.yaml files.
+
+## Examples
+
 The certificate resource looks like:
 
     ExampleCertificate:

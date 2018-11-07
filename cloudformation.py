@@ -1,8 +1,6 @@
-from troposphere import Template, Join, AWS_STACK_NAME, Ref, AWS_REGION, AWS_ACCOUNT_ID, GetAtt, Output
-import troposphere.iam as iam
-import troposphere.awslambda as awslambda
-from awacs.aws import PolicyDocument, Statement, Allow, Action, Principal
-from troposphere.cloudformation import CustomResource
+from troposphere import Template, Ref, Output
+
+import troposphere_dns_certificate.certificatemanager as certificatemanager
 
 
 def create_template():
@@ -11,82 +9,15 @@ def create_template():
     )
     template.add_version()
 
-    lambda_role = template.add_resource(iam.Role('CustomAcmCertificateLambdaExecutionRole',
-        AssumeRolePolicyDocument=PolicyDocument(
-            Version='2012-10-17',
-            Statement=[
-                Statement(
-                    Effect=Allow,
-                    Action=[Action('sts', 'AssumeRole')],
-                    Principal=Principal('Service', 'lambda.amazonaws.com')
-                )
-            ],
-        ),
-        Path="/",
-        ManagedPolicyArns=[
-            'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
-            'arn:aws:iam::aws:policy/service-role/AWSLambdaRole'
-        ],
-        Policies=[iam.Policy('CustomAcmCertificateLambdaPolicy',
-            PolicyName=Join('', [Ref(AWS_STACK_NAME), 'CustomAcmCertificateLambdaExecutionPolicy']),
-            PolicyDocument=PolicyDocument(
-                Version='2012-10-17',
-                Statement=[
-                    Statement(
-                        Effect=Allow,
-                        Action=[
-                            Action('acm', 'AddTagsToCertificate'),
-                            Action('acm', 'DeleteCertificate'),
-                            Action('acm', 'DescribeCertificate'),
-                            Action('acm', 'RemoveTagsFromCertificate'),
-                            Action('acm', 'RequestCertificate')
-                        ],
-                        Resource=[Join('', ['arn:aws:acm:', Ref(AWS_REGION), ':', Ref(AWS_ACCOUNT_ID), ':certificate/*'])]
-                    ),
-                    Statement(
-                        Effect=Allow,
-                        Action=[
-                            Action('acm', 'RequestCertificate')
-                        ],
-                        Resource=['*']
-                    ),
-                    Statement(
-                        Effect=Allow,
-                        Action=[
-                            Action('route53', 'ChangeResourceRecordSets')
-                        ],
-                        Resource=['arn:aws:route53:::hostedzone/*']
-                    )
-                ]
-            ),
-        )],
-    ))
-
-    with open('certificate_min.py', 'r') as f:
-        code = f.read()
-
-    certificate_lambda = template.add_resource(awslambda.Function('CustomAcmCertificateLambda',
-        Code=awslambda.Code(ZipFile=code),
-        Runtime='python3.6',
-        Handler='index.handler',
-        Timeout=300,
-        Role=GetAtt(lambda_role, 'Arn'),
-        Description='Cloudformation custom resource for DNS validated certificates',
-        Metadata={
-            'Source': 'https://github.com/dflook/cloudformation-dns-certificate',
-            'Version': '1.2.1'
-        }
-    ))
-
-    certificate = template.add_resource(CustomResource('ExampleCertificate',
-        ServiceToken=GetAtt(certificate_lambda, 'Arn'),
+    certificate = template.add_resource(certificatemanager.Certificate(
+        'ExampleCertificate',
         ValidationMethod='DNS',
         DomainName='test.example.com',
         DomainValidationOptions=[
-            {
-                'DomainName': 'test.example.com',
-                'HostedZoneId': 'Z2KZ5YTUFZNC7H'
-            }
+            certificatemanager.DomainValidationOption(
+                DomainName='test.example.com',
+                HostedZoneId='Z2KZ5YTUFZNC7H'
+            )
         ],
         Tags=[{
             'Key': 'Name',
@@ -95,12 +26,13 @@ def create_template():
     ))
 
     template.add_output(Output(
-        "CertificateARN",
+        'CertificateARN',
         Value=Ref(certificate),
-        Description="The ARN of the example certificate"
+        Description='The ARN of the example certificate'
     ))
 
     return template
+
 
 if __name__ == '__main__':
     template = create_template()
