@@ -21,7 +21,8 @@ l.setLevel(logging.INFO)
 
 def send(event):
     l.info(event)
-    requests.put(event['ResponseURL'], json=event, headers={'content-type': ''})
+    r = requests.put(event['ResponseURL'], json=event, headers={'content-type': ''})
+    r.raise_for_status()
 
 
 def create_cert(props, i_token):

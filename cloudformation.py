@@ -74,7 +74,7 @@ def create_template():
         Description='Cloudformation custom resource for DNS validated certificates',
         Metadata={
             'Source': 'https://github.com/dflook/cloudformation-dns-certificate',
-            'Version': '1.2.0'
+            'Version': '1.2.1'
         }
     ))
 
