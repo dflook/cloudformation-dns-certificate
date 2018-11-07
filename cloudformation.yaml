@@ -56,8 +56,7 @@ Resources:
           \t\t\telse:\n\t\t\t\tif B in event[J]:acm.remove_tags_from_certificate(CertificateArn=event[A],Tags=event[J][B])\n\
           \t\t\t\tadd_tags(event[A],props)\n\t\t\tevent[C]=L;return send(event)\n\t\
           \telse:raise RuntimeError('Unknown RequestType')\n\texcept Exception as\
-          \ ex:\n\t\tl.exception('');event[C]=U;event['Reason']=str(ex);return send(event)\n\
-          \n"
+          \ ex:\n\t\tl.exception('');event[C]=U;event['Reason']=str(ex);return send(event)\n"
       Description: Cloudformation custom resource for DNS validated certificates
       Handler: index.handler
       Role: !GetAtt 'CustomAcmCertificateLambdaExecutionRole.Arn'
