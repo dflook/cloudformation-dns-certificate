@@ -8,6 +8,7 @@ with open(readme_path) as f:
 setup(
     name='troposphere-dns-certificate',
     description='Cloudformation DNS validated certificate resource for troposphere',
+    version='1.2.1',
     author='Daniel Flook',
     author_email='daniel@flook.org',
     url='https://github.com/dflook/cloudformation-dns-certificate',
@@ -17,21 +18,10 @@ setup(
         'Say Thanks!': 'https://saythanks.io/to/dflook',
     },
     keywords='cloudformation troposphere certificate',
-    use_scm_version=True,
     package_dir={'': 'src'},
     packages=find_packages('src'),
     long_description=long_desc,
     long_description_content_type='text/markdown',
-
-    classifiers=[
-        'Development Status :: 5 - Production/Stable',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Intended Audience :: Developers',
-        'Topic :: Software Development'
-    ],
-
     install_requires=['troposphere', 'awacs', 'wrapt', 'python_minifier'],
     zip_safe=False
 )

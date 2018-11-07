@@ -1,5 +1,5 @@
 import pkgutil
-
+import pkg_resources
 import python_minifier
 import troposphere.awslambda as awslambda
 import troposphere.iam as iam
@@ -75,7 +75,7 @@ certificate_lambda = awslambda.Function(
     Description='Cloudformation custom resource for DNS validated certificates',
     Metadata={
         'Source': 'https://github.com/dflook/cloudformation-dns-certificate',
-        'Version': '1.2.1'
+        'Version': pkg_resources.require('troposphere-dns-certificate')[0].version
     }
 )
 
