@@ -27,4 +27,7 @@ jobs:
 workflows:
   build:
     jobs:
-    - publish
+    - publish:
+        filters:
+          branches:
+            only: master
