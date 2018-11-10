@@ -2,7 +2,7 @@
 
 set -e
 
-./create_test_template.py $HOSTED_ZONE_NAME $HOSTED_ZONE_ID > test.yaml
+./create_test_template.py $HOSTED_ZONE_NAME $HOSTED_ZONE_ID $HOSTED_ZONE2_NAME $HOSTED_ZONE2_ID > test.yaml
 
 for region in $(aws ec2 describe-regions --query "Regions[].{Name:RegionName}" --output text)
 do

@@ -3,17 +3,18 @@
 The cloudformation AWS::CertificateManager::Certificate resource can only create email validated certificates.
 
 This is a custom cloudformation resource which can additionally create DNS validated certificates for domains that use
-a Route 53 hosted zone.
+a Route 53 hosted zone. It can also create certificates in a region other than the stack's region.
 
 ## Usage
 
-It should behave identically to [AWS::CertificateManager::Certificate](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html).
+It should behave identically to [AWS::CertificateManager::Certificate](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html), 
+except for the differences described here.
 
-The additional VerificationMethod property is supported which may be 'EMAIL' or 'DNS', as in the [API documentation](https://docs.aws.amazon.com/acm/latest/APIReference/API_RequestCertificate.html#ACM-RequestCertificate-request-ValidationMethod).
+When using 'DNS' as the ValidationMethod the DomainValidation property becomes required, and the DomainValidationOption
+requires a HostedZoneId instead of a ValidationDomain. The HostedZoneId should be the zone to create the DNS validation 
+records in.
 
-When using 'DNS' as the VerificationMethod the DomainValidation property becomes required. The DomainValidationOption
-values no longer have a ValidationDomain but instead a HostedZoneId. The HostedZoneId should be the zone to create
-the DNS validation records in.
+The additional 'Region' property can be used to set the region to create the certificate in.
 
 Certificates may take up to 30 minutes to be issued, but typically takes ~3 minutes. The Certificate resource remains as 
 CREATE_IN_PROGRESS until the certificate is issued.
@@ -26,7 +27,7 @@ properties you expect. Remember to add a ServiceToken property to the resource w
 
 If you are using troposphere you can install this resource as an extension using pip:
 
-$ pip install troposphere_dns_certificate
+    $ pip install troposphere_dns_certificate
 
 You can then import the Certificate resource from troposphere_dns_certificate.certificatemanager instead of 
 troposphere.certificatemanager. 
@@ -114,6 +115,24 @@ Wildcards can be used normally. A certificate for a name and all subdomains for 
           DomainValidationOptions:
             - DomainName: example.com
               HostedZoneId: Z2KZ5YTUFZNC7H
+          Tags:
+            - Key: Name
+              Value: Example Certificate
+          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+        Type: AWS::CloudFormation::CustomResource
+
+### Specifying a region
+
+This example uses the Region property to create the certificate in us-east-1, for use with cloudfront:
+
+    ExampleCertificate:
+        Properties:
+          DomainName: example.com          
+          ValidationMethod: DNS
+          DomainValidationOptions:
+            - DomainName: example.com
+              HostedZoneId: Z2KZ5YTUFZNC7H
+          Region: us-east-1
           Tags:
             - Key: Name
               Value: Example Certificate

@@ -1,10 +1,11 @@
 import pkgutil
+
 import pkg_resources
 import python_minifier
 import troposphere.awslambda as awslambda
 import troposphere.iam as iam
 from awacs.aws import PolicyDocument, Statement, Allow, Action, Principal
-from troposphere import AWSProperty, Tags, StackName, Region, AccountId, Join, GetAtt
+from troposphere import AWSProperty, Tags, StackName, AccountId, Join, GetAtt
 from troposphere.cloudformation import CustomResource
 
 from troposphere_dns_certificate import TroposphereExtension
@@ -40,8 +41,7 @@ lambda_role = iam.Role(
                         Action('acm', 'RemoveTagsFromCertificate'),
                         Action('acm', 'RequestCertificate')
                     ],
-                    Resource=[Join('', ['arn:aws:acm:', Region, ':', AccountId,
-                                        ':certificate/*'])]
+                    Resource=[Join('', ['arn:aws:acm:*:', AccountId, ':certificate/*'])]
                 ),
                 Statement(
                     Effect=Allow,
@@ -89,6 +89,8 @@ class DomainValidationOption(AWSProperty):
 
 
 class Certificate(CustomResource, TroposphereExtension):
+    resource_type = 'Custom::DNSCertificate'
+
     props = {
         'DomainName': (str, True),
         'DomainValidationOptions': ([(DomainValidationOption, dict)], False),

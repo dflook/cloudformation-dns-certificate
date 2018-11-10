@@ -5,15 +5,16 @@ Post-minification, this module must be less than 4KiB.
 
 """
 
-import time
-import boto3
+import copy
 import hashlib
 import json
-import copy
 import logging
+import time
+
+import boto3
 from botocore.vendored import requests
 
-acm = boto3.client('acm')
+acm = 0
 
 l = logging.getLogger()
 l.setLevel(logging.INFO)
@@ -22,29 +23,33 @@ l.setLevel(logging.INFO)
 def send(event):
     l.info(event)
     r = requests.put(event['ResponseURL'], json=event, headers={'content-type': ''})
+    l.info(r.content)
     r.raise_for_status()
 
 
-def create_cert(props, i_token):
-    a = copy.copy(props)
+def create_cert(p, i_token):
+    a = copy.copy(p)
 
     del a['ServiceToken']
 
-    if 'Tags' in props:
+    if 'Region' in p:
+        del a['Region']
+
+    if 'Tags' in p:
         del a['Tags']
 
-    if 'ValidationMethod' in props:
-        if props['ValidationMethod'] == 'DNS':
+    if 'ValidationMethod' in p:
+        if p['ValidationMethod'] == 'DNS':
 
             try:
-                for name in set([props['DomainName']] + props.get('SubjectAlternativeNames', [])):
-                    get_zone_for(name, props)
+                for name in set([p['DomainName']] + p.get('SubjectAlternativeNames', [])):
+                    get_zone_for(name, p)
             except KeyError:
-                raise RuntimeError('DomainValidationOptions missing')
+                raise RuntimeError('DomainValidationOptions' + ' missing')
 
             del a['DomainValidationOptions']
 
-        elif props['ValidationMethod'] == 'EMAIL':
+        elif p['ValidationMethod'] == 'EMAIL':
             del a['ValidationMethod']
 
     return acm.request_certificate(
@@ -53,14 +58,14 @@ def create_cert(props, i_token):
     )['CertificateArn']
 
 
-def add_tags(arn, props):
-    if 'Tags' in props:
-        acm.add_tags_to_certificate(CertificateArn=arn, Tags=props['Tags'])
+def add_tags(arn, p):
+    if 'Tags' in p:
+        acm.add_tags_to_certificate(CertificateArn=arn, Tags=p['Tags'])
 
 
-def get_zone_for(name, props):
+def get_zone_for(name, p):
     name = name.rstrip('.')
-    hosted_zones = {v['DomainName'].rstrip('.'): v['HostedZoneId'] for v in props['DomainValidationOptions']}
+    hosted_zones = {v['DomainName'].rstrip('.'): v['HostedZoneId'] for v in p['DomainValidationOptions']}
 
     components = name.split('.')
 
@@ -70,11 +75,11 @@ def get_zone_for(name, props):
 
         components = components[1:]
 
-    raise RuntimeError('DomainValidationOptions missing for %s' % str(name))
+    raise RuntimeError('DomainValidationOptions' + ' missing for %s' % str(name))
 
 
-def validate(arn, props):
-    if 'ValidationMethod' in props and props['ValidationMethod'] == 'DNS':
+def validate(arn, p):
+    if 'ValidationMethod' in p and p['ValidationMethod'] == 'DNS':
 
         all_records_created = False
         while not all_records_created:
@@ -92,26 +97,22 @@ def validate(arn, props):
                     all_records_created = False
                     continue
 
-                records = []
                 if v['ValidationStatus'] == 'PENDING_VALIDATION':
-                    records.append({
-                        'Action': 'UPSERT',
-                        'ResourceRecordSet': {
-                            'Name': v['ResourceRecord']['Name'],
-                            'Type': v['ResourceRecord']['Type'],
-                            'TTL': 60,
-                            'ResourceRecords': [{
-                                'Value': v['ResourceRecord']['Value']
-                            }]
-                        }
-                    })
-
-                if records:
                     response = boto3.client('route53').change_resource_record_sets(
-                        HostedZoneId=get_zone_for(v['DomainName'], props),
+                        HostedZoneId=get_zone_for(v['DomainName'], p),
                         ChangeBatch={
                             'Comment': 'Domain validation for %s' % arn,
-                            'Changes': records
+                            'Changes': [{
+                                'Action': 'UPSERT',
+                                'ResourceRecordSet': {
+                                    'Name': v['ResourceRecord']['Name'],
+                                    'Type': v['ResourceRecord']['Type'],
+                                    'TTL': 60,
+                                    'ResourceRecords': [{
+                                        'Value': v['ResourceRecord']['Value']
+                                    }]
+                                }
+                            }]
                         }
                     )
 
@@ -166,13 +167,16 @@ def handler(event, context):
     l.info(event)
     try:
         i_token = hashlib.new('md5', (event['RequestId'] + event['StackId']).encode()).hexdigest()
-        props = event['ResourceProperties']
+        p = event['ResourceProperties']
+
+        global acm
+        acm = boto3.client('acm', region_name=p.get('Region', None))
 
         if event['RequestType'] == 'Create':
             event['PhysicalResourceId'] = 'None'
-            event['PhysicalResourceId'] = create_cert(props, i_token)
-            add_tags(event['PhysicalResourceId'], props)
-            validate(event['PhysicalResourceId'], props)
+            event['PhysicalResourceId'] = create_cert(p, i_token)
+            add_tags(event['PhysicalResourceId'], p)
+            validate(event['PhysicalResourceId'], p)
 
             if wait_for_issuance(event['PhysicalResourceId'], context):
                 event['Status'] = 'SUCCESS'
@@ -189,9 +193,9 @@ def handler(event, context):
         elif event['RequestType'] == 'Update':
 
             if replace_cert(event):
-                event['PhysicalResourceId'] = create_cert(props, i_token)
-                add_tags(event['PhysicalResourceId'], props)
-                validate(event['PhysicalResourceId'], props)
+                event['PhysicalResourceId'] = create_cert(p, i_token)
+                add_tags(event['PhysicalResourceId'], p)
+                validate(event['PhysicalResourceId'], p)
 
                 if not wait_for_issuance(event['PhysicalResourceId'], context):
                     return reinvoke(event, context)
@@ -200,7 +204,7 @@ def handler(event, context):
                     acm.remove_tags_from_certificate(CertificateArn=event['PhysicalResourceId'],
                                                      Tags=event['OldResourceProperties']['Tags'])
 
-                add_tags(event['PhysicalResourceId'], props)
+                add_tags(event['PhysicalResourceId'], p)
 
             event['Status'] = 'SUCCESS'
             return send(event)
