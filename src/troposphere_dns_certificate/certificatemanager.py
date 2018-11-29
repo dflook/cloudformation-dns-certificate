@@ -97,6 +97,7 @@ class Certificate(CustomResource, TroposphereExtension):
         'SubjectAlternativeNames': ([str], False),
         'Tags': ((Tags, list), False),
         'ValidationMethod': (str, False),
+        'AssumeRole': (str, False),
     }
 
     def add_extension(self, template, add_resource):
