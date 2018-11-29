@@ -95,7 +95,12 @@ def validate(arn, p):
                     continue
 
                 if v['ValidationStatus'] == 'PENDING_VALIDATION':
-                    response = boto3.client('route53').change_resource_record_sets(
+                    c = client('sts').assume_role(RoleArn=p['AssumeRole'], RoleSessionName='cdc')['Credentials'] if 'AssumeRole' in p else {}
+                    r = client('route53',
+                        aws_access_key_id=c.get('AccessKeyId'),
+                        aws_secret_access_key=c.get('SecretAccessKey'),
+                        aws_session_token=c.get('SessionToken')
+                    ).change_resource_record_sets(
                         HostedZoneId=get_zone_for(v['DomainName'], p),
                         ChangeBatch={
                             'Comment': 'Domain validation for %s' % arn,
@@ -113,7 +118,7 @@ def validate(arn, p):
                         }
                     )
 
-                    l.info(response)
+                    l.info(r)
 
             time.sleep(1)
 
