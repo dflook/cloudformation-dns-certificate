@@ -11,7 +11,7 @@ import json
 import logging
 import time
 
-import boto3
+from boto3 import client
 from botocore.vendored import requests
 
 acm = 0
@@ -20,9 +20,9 @@ l = logging.getLogger()
 l.setLevel(logging.INFO)
 
 
-def send(event):
-    l.info(event)
-    r = requests.put(event['ResponseURL'], json=event, headers={'content-type': ''})
+def send(e):
+    l.info(e)
+    r = requests.put(e['ResponseURL'], json=e, headers={'content-type': ''})
     l.info(r.content)
     r.raise_for_status()
 
@@ -30,13 +30,10 @@ def send(event):
 def create_cert(p, i_token):
     a = copy.copy(p)
 
-    del a['ServiceToken']
-
-    if 'Region' in p:
-        del a['Region']
-
-    if 'Tags' in p:
-        del a['Tags']
+    a.pop('ServiceToken', None)
+    a.pop('Region', None)
+    a.pop('Tags', None)
+    a.pop('Route53RoleArn', None)
 
     if 'ValidationMethod' in p:
         if p['ValidationMethod'] == 'DNS':
@@ -65,43 +62,52 @@ def add_tags(arn, p):
 
 def get_zone_for(name, p):
     name = name.rstrip('.')
-    hosted_zones = {v['DomainName'].rstrip('.'): v['HostedZoneId'] for v in p['DomainValidationOptions']}
+    zones = {v['DomainName'].rstrip('.'): v['HostedZoneId'] for v in p['DomainValidationOptions']}
 
-    components = name.split('.')
+    parts = name.split('.')
 
-    while len(components):
-        if '.'.join(components) in hosted_zones:
-            return hosted_zones['.'.join(components)]
+    while len(parts):
+        if '.'.join(parts) in zones:
+            return zones['.'.join(parts)]
 
-        components = components[1:]
+        parts = parts[1:]
 
     raise RuntimeError('DomainValidationOptions' + ' missing for %s' % str(name))
 
 
-def validate(arn, p):
+def validate(e, p):
     if 'ValidationMethod' in p and p['ValidationMethod'] == 'DNS':
 
-        all_records_created = False
-        while not all_records_created:
-            all_records_created = True
+        done = False
+        while not done:
+            done = True
 
-            certificate = acm.describe_certificate(CertificateArn=arn)['Certificate']
-            l.info(certificate)
+            cert = acm.describe_certificate(CertificateArn=e['PhysicalResourceId'])['Certificate']
+            l.info(cert)
 
-            if certificate['Status'] != 'PENDING_VALIDATION':
+            if cert['Status'] != 'PENDING_VALIDATION':
                 return
 
-            for v in certificate['DomainValidationOptions']:
+            for v in cert['DomainValidationOptions']:
 
                 if 'ValidationStatus' not in v or 'ResourceRecord' not in v:
-                    all_records_created = False
+                    done = False
                     continue
 
                 if v['ValidationStatus'] == 'PENDING_VALIDATION':
-                    response = boto3.client('route53').change_resource_record_sets(
+                    c = client('sts').assume_role(
+                        RoleArn=p['Route53RoleArn'],
+                        RoleSessionName=('DNSCertificate'+e['LogicalResourceId'])[:64],
+                        DurationSeconds=900
+                    )['Credentials'] if 'Route53RoleArn' in p else {}
+                    r = client('route53',
+                        aws_access_key_id=c.get('AccessKeyId'),
+                        aws_secret_access_key=c.get('SecretAccessKey'),
+                        aws_session_token=c.get('SessionToken')
+                    ).change_resource_record_sets(
                         HostedZoneId=get_zone_for(v['DomainName'], p),
                         ChangeBatch={
-                            'Comment': 'Domain validation for %s' % arn,
+                            'Comment': 'Domain validation for %s' % e['PhysicalResourceId'],
                             'Changes': [{
                                 'Action': 'UPSERT',
                                 'ResourceRecordSet': {
@@ -116,7 +122,7 @@ def validate(arn, p):
                         }
                     )
 
-                    l.info(response)
+                    l.info(r)
 
             time.sleep(1)
 
@@ -136,12 +142,12 @@ def replace_cert(event):
 def wait_for_issuance(arn, context):
     while (context.get_remaining_time_in_millis() / 1000) > 30:
 
-        certificate = acm.describe_certificate(CertificateArn=arn)['Certificate']
-        l.info(certificate)
-        if certificate['Status'] == 'ISSUED':
+        cert= acm.describe_certificate(CertificateArn=arn)['Certificate']
+        l.info(cert)
+        if cert['Status'] == 'ISSUED':
             return True
-        elif certificate['Status'] == 'FAILED':
-            raise RuntimeError(certificate.get('FailureReason', 'Failed to issue certificate'))
+        elif cert['Status'] == 'FAILED':
+            raise RuntimeError(cert.get('FailureReason', 'Failed to issue certificate'))
 
         time.sleep(5)
 
@@ -156,7 +162,7 @@ def reinvoke(event, context):
 
     l.info('Reinvoking for the %i time' % event['I'])
     l.info(event)
-    boto3.client('lambda').invoke(
+    client('lambda').invoke(
         FunctionName=context.invoked_function_arn,
         InvocationType='Event',
         Payload=json.dumps(event).encode()
@@ -170,13 +176,13 @@ def handler(event, context):
         p = event['ResourceProperties']
 
         global acm
-        acm = boto3.client('acm', region_name=p.get('Region', None))
+        acm = client('acm', region_name=p.get('Region', None))
 
         if event['RequestType'] == 'Create':
             event['PhysicalResourceId'] = 'None'
             event['PhysicalResourceId'] = create_cert(p, i_token)
             add_tags(event['PhysicalResourceId'], p)
-            validate(event['PhysicalResourceId'], p)
+            validate(event, p)
 
             if wait_for_issuance(event['PhysicalResourceId'], context):
                 event['Status'] = 'SUCCESS'
@@ -195,7 +201,7 @@ def handler(event, context):
             if replace_cert(event):
                 event['PhysicalResourceId'] = create_cert(p, i_token)
                 add_tags(event['PhysicalResourceId'], p)
-                validate(event['PhysicalResourceId'], p)
+                validate(event, p)
 
                 if not wait_for_issuance(event['PhysicalResourceId'], context):
                     return reinvoke(event, context)

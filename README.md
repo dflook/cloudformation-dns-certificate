@@ -138,3 +138,42 @@ This example uses the Region property to create the certificate in us-east-1, fo
               Value: Example Certificate
           ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
         Type: AWS::CloudFormation::CustomResource
+
+### Assuming a role for Route 53 record creation
+
+In some cases the account owning the hosted zone might be a different one than the one you are generating the certificate in.
+To support this you can specify the top-level property `Route53RoleArn` with a role-ARN that should be assumed before creating the records required for certificate validation.
+
+    ExampleCertificate:
+        Properties:
+          DomainName: test.example.com
+          ValidationMethod: DNS
+          DomainValidationOptions:
+            - DomainName: test.example.com
+              HostedZoneId: Z2KZ5YTUFZNC7H
+          Route53RoleArn: arn:aws:iam::123412341234:role/RoleAllowedToEditHostedZone
+          Tags:
+            - Key: Name
+              Value: Example Certificate
+          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+        Type: AWS::CloudFormation::CustomResource
+
+Additionally you have to allow the assumption of this role through the execution role, e.g.:
+
+    CustomAcmCertificateLambdaExecutionRole:
+      Properties:
+        ...
+        Policies:
+          - PolicyDocument:
+              Statement:
+                ...
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:iam::123412341234:role/RoleAllowedToEditHostedZone
+
+Note:
+
+* This property is only used if you use `ValidationMethod: DNS`.
+* It is currently not supported to assume different roles for different hosted zones.
