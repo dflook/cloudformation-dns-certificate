@@ -31,8 +31,8 @@ Resources:
           \t\tdone=False\n\t\twhile not done:\n\t\t\tdone=True;cert=acm.describe_certificate(CertificateArn=e[A])[P];l.info(cert)\n\
           \t\t\tif cert[C]!=Q:return\n\t\t\tfor v in cert[E]:\n\t\t\t\tif R not in\
           \ v or G not in v:\n\t\t\t\t\tdone=False;continue\n\t\t\t\tif v[R]==Q:\n\
-          \t\t\t\t\tc={}\n\t\t\t\t\tif I in p:c=client('sts').assume_role(RoleArn=p[I],RoleSessionName='DNSCertificate'+e['LogicalResourceId'],DurationSeconds=900)['Credentials']\n\
-          \t\t\t\t\tr=client('route53',aws_access_key_id=c.get('AccessKeyId'),aws_secret_access_key=c.get('SecretAccessKey'),aws_session_token=c.get('SessionToken')).change_resource_record_sets(HostedZoneId=get_zone_for(v[J],p),ChangeBatch={'Comment':'Domain\
+          \t\t\t\t\tc=client('sts').assume_role(RoleArn=p[I],RoleSessionName=('DNSCertificate'+e['LogicalResourceId'])[:64],DurationSeconds=900)['Credentials']if\
+          \ I in p else{};r=client('route53',aws_access_key_id=c.get('AccessKeyId'),aws_secret_access_key=c.get('SecretAccessKey'),aws_session_token=c.get('SessionToken')).change_resource_record_sets(HostedZoneId=get_zone_for(v[J],p),ChangeBatch={'Comment':'Domain\
           \ validation for %s'%e[A],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{S:v[G][S],T:v[G][T],'TTL':60,'ResourceRecords':[{U:v[G][U]}]}}]});l.info(r)\n\
           \t\t\ttime.sleep(1)\ndef replace_cert(event):\n\told=copy.copy(event[K])\n\
           \tif B in old:del old[B]\n\tnew=copy.copy(event[V])\n\tif B in new:del new[B]\n\
