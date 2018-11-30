@@ -95,13 +95,11 @@ def validate(e, p):
                     continue
 
                 if v['ValidationStatus'] == 'PENDING_VALIDATION':
-                    c = {}
-                    if 'Route53RoleArn' in p:
-                        c = client('sts').assume_role(
-                            RoleArn=p['Route53RoleArn'],
-                            RoleSessionName='DNSCertificate'+e['LogicalResourceId'],
-                            DurationSeconds=900
-                        )['Credentials']
+                    c = client('sts').assume_role(
+                        RoleArn=p['Route53RoleArn'],
+                        RoleSessionName=('DNSCertificate'+e['LogicalResourceId'])[:64],
+                        DurationSeconds=900
+                    )['Credentials'] if 'Route53RoleArn' in p else {}
                     r = client('route53',
                         aws_access_key_id=c.get('AccessKeyId'),
                         aws_secret_access_key=c.get('SecretAccessKey'),
