@@ -75,14 +75,14 @@ def get_zone_for(name, p):
     raise RuntimeError('DomainValidationOptions' + ' missing for %s' % str(name))
 
 
-def validate(arn, p):
+def validate(e, p):
     if 'ValidationMethod' in p and p['ValidationMethod'] == 'DNS':
 
         done = False
         while not done:
             done = True
 
-            cert= acm.describe_certificate(CertificateArn=arn)['Certificate']
+            cert = acm.describe_certificate(CertificateArn=e['PhysicalResourceId'])['Certificate']
             l.info(cert)
 
             if cert['Status'] != 'PENDING_VALIDATION':
@@ -99,7 +99,7 @@ def validate(arn, p):
                     if 'Route53RoleArn' in p:
                         c = client('sts').assume_role(
                             RoleArn=p['Route53RoleArn'],
-                            RoleSessionName='cdc'
+                            RoleSessionName='DNSCertificate'+e['LogicalResourceId']
                         )['Credentials']
                     r = client('route53',
                         aws_access_key_id=c.get('AccessKeyId'),
@@ -108,7 +108,7 @@ def validate(arn, p):
                     ).change_resource_record_sets(
                         HostedZoneId=get_zone_for(v['DomainName'], p),
                         ChangeBatch={
-                            'Comment': 'Domain validation for %s' % arn,
+                            'Comment': 'Domain validation for %s' % e['PhysicalResourceId'],
                             'Changes': [{
                                 'Action': 'UPSERT',
                                 'ResourceRecordSet': {
@@ -183,7 +183,7 @@ def handler(event, context):
             event['PhysicalResourceId'] = 'None'
             event['PhysicalResourceId'] = create_cert(p, i_token)
             add_tags(event['PhysicalResourceId'], p)
-            validate(event['PhysicalResourceId'], p)
+            validate(event, p)
 
             if wait_for_issuance(event['PhysicalResourceId'], context):
                 event['Status'] = 'SUCCESS'
@@ -202,7 +202,7 @@ def handler(event, context):
             if replace_cert(event):
                 event['PhysicalResourceId'] = create_cert(p, i_token)
                 add_tags(event['PhysicalResourceId'], p)
-                validate(event['PhysicalResourceId'], p)
+                validate(event, p)
 
                 if not wait_for_issuance(event['PhysicalResourceId'], context):
                     return reinvoke(event, context)
