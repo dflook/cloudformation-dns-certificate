@@ -99,7 +99,8 @@ def validate(e, p):
                     if 'Route53RoleArn' in p:
                         c = client('sts').assume_role(
                             RoleArn=p['Route53RoleArn'],
-                            RoleSessionName='DNSCertificate'+e['LogicalResourceId']
+                            RoleSessionName='DNSCertificate'+e['LogicalResourceId'],
+                            DurationSeconds=900
                         )['Credentials']
                     r = client('route53',
                         aws_access_key_id=c.get('AccessKeyId'),
