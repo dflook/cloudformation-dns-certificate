@@ -8,11 +8,11 @@ Resources:
   CustomAcmCertificateLambda:
     Metadata:
       Source: https://github.com/dflook/cloudformation-dns-certificate
-      Version: 1.3.0
+      Version: 1.4.0
     Properties:
       Code:
         ZipFile: "A='PhysicalResourceId'\nB='Tags'\nC='Status'\nD='ValidationMethod'\n\
-          E='DomainValidationOptions'\nF='.'\nG='ResourceRecord'\nH='I'\nI='AssumeRole'\n\
+          E='DomainValidationOptions'\nF='.'\nG='ResourceRecord'\nH='I'\nI='Route53RoleArn'\n\
           J='DomainName'\nK='OldResourceProperties'\nL='RequestType'\nM='SUCCESS'\n\
           N='Region'\nO='DNS'\nP='Certificate'\nQ='PENDING_VALIDATION'\nR='ValidationStatus'\n\
           S='Name'\nT='Type'\nU='Value'\nV='ResourceProperties'\nW='FAILED'\nX='None'\n\
@@ -27,13 +27,13 @@ Resources:
           def get_zone_for(name,p):\n\tname=name.rstrip(F);zones={v[J].rstrip(F):v['HostedZoneId']for\
           \ v in(p[E])};parts=name.split(F)\n\twhile len(parts):\n\t\tif F.join(parts)in\
           \ zones:return zones[F.join(parts)]\n\t\tparts=parts[1:]\n\traise RuntimeError(E+'\
-          \ missing for %s'%str(name))\ndef validate(arn,p):\n\tif D in p and p[D]==O:\n\
-          \t\tdone=False\n\t\twhile not done:\n\t\t\tdone=True;cert=acm.describe_certificate(CertificateArn=arn)[P];l.info(cert)\n\
+          \ missing for %s'%str(name))\ndef validate(e,p):\n\tif D in p and p[D]==O:\n\
+          \t\tdone=False\n\t\twhile not done:\n\t\t\tdone=True;cert=acm.describe_certificate(CertificateArn=e[A])[P];l.info(cert)\n\
           \t\t\tif cert[C]!=Q:return\n\t\t\tfor v in cert[E]:\n\t\t\t\tif R not in\
           \ v or G not in v:\n\t\t\t\t\tdone=False;continue\n\t\t\t\tif v[R]==Q:\n\
-          \t\t\t\t\tc=client('sts').assume_role(RoleArn=p[I],RoleSessionName='cdc')['Credentials']if\
-          \ I in p else{};r=client('route53',aws_access_key_id=c.get('AccessKeyId'),aws_secret_access_key=c.get('SecretAccessKey'),aws_session_token=c.get('SessionToken')).change_resource_record_sets(HostedZoneId=get_zone_for(v[J],p),ChangeBatch={'Comment':'Domain\
-          \ validation for %s'%arn,'Changes':[{'Action':'UPSERT','ResourceRecordSet':{S:v[G][S],T:v[G][T],'TTL':60,'ResourceRecords':[{U:v[G][U]}]}}]});l.info(r)\n\
+          \t\t\t\t\tc={}\n\t\t\t\t\tif I in p:c=client('sts').assume_role(RoleArn=p[I],RoleSessionName='DNSCertificate'+e['LogicalResourceId'],DurationSeconds=900)['Credentials']\n\
+          \t\t\t\t\tr=client('route53',aws_access_key_id=c.get('AccessKeyId'),aws_secret_access_key=c.get('SecretAccessKey'),aws_session_token=c.get('SessionToken')).change_resource_record_sets(HostedZoneId=get_zone_for(v[J],p),ChangeBatch={'Comment':'Domain\
+          \ validation for %s'%e[A],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{S:v[G][S],T:v[G][T],'TTL':60,'ResourceRecords':[{U:v[G][U]}]}}]});l.info(r)\n\
           \t\t\ttime.sleep(1)\ndef replace_cert(event):\n\told=copy.copy(event[K])\n\
           \tif B in old:del old[B]\n\tnew=copy.copy(event[V])\n\tif B in new:del new[B]\n\
           \treturn old!=new\ndef wait_for_issuance(arn,context):\n\twhile context.get_remaining_time_in_millis()/1000>30:\n\
@@ -44,12 +44,12 @@ Resources:
           \ not issued in time')\n\tl.info('Reinvoking for the %i time'%event[H]);l.info(event);client('lambda').invoke(FunctionName=context.invoked_function_arn,InvocationType='Event',Payload=json.dumps(event).encode())\n\
           def handler(event,context):\n\tl.info(event)\n\ttry:\n\t\ti_token=hashlib.new('md5',(event['RequestId']+event['StackId']).encode()).hexdigest();p=event[V];global\
           \ acm;acm=client('acm',region_name=p.get(N,None))\n\t\tif event[L]=='Create':\n\
-          \t\t\tevent[A]=X;event[A]=create_cert(p,i_token);add_tags(event[A],p);validate(event[A],p)\n\
+          \t\t\tevent[A]=X;event[A]=create_cert(p,i_token);add_tags(event[A],p);validate(event,p)\n\
           \t\t\tif wait_for_issuance(event[A],context):\n\t\t\t\tevent[C]=M;return\
           \ send(event)\n\t\t\telse:return reinvoke(event,context)\n\t\telif event[L]=='Delete':\n\
           \t\t\tif event[A]!=X:acm.delete_certificate(CertificateArn=event[A])\n\t\
           \t\tevent[C]=M;return send(event)\n\t\telif event[L]=='Update':\n\t\t\t\
-          if replace_cert(event):\n\t\t\t\tevent[A]=create_cert(p,i_token);add_tags(event[A],p);validate(event[A],p)\n\
+          if replace_cert(event):\n\t\t\t\tevent[A]=create_cert(p,i_token);add_tags(event[A],p);validate(event,p)\n\
           \t\t\t\tif not wait_for_issuance(event[A],context):return reinvoke(event,context)\n\
           \t\t\telse:\n\t\t\t\tif B in event[K]:acm.remove_tags_from_certificate(CertificateArn=event[A],Tags=event[K][B])\n\
           \t\t\t\tadd_tags(event[A],p)\n\t\t\tevent[C]=M;return send(event)\n\t\t\
