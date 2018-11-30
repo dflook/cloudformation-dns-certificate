@@ -33,7 +33,7 @@ def create_cert(p, i_token):
     a.pop('ServiceToken', None)
     a.pop('Region', None)
     a.pop('Tags', None)
-    a.pop('AssumeRole', None)
+    a.pop('Route53RoleArn', None)
 
     if 'ValidationMethod' in p:
         if p['ValidationMethod'] == 'DNS':
@@ -95,7 +95,12 @@ def validate(arn, p):
                     continue
 
                 if v['ValidationStatus'] == 'PENDING_VALIDATION':
-                    c = client('sts').assume_role(RoleArn=p['AssumeRole'], RoleSessionName='cdc')['Credentials'] if 'AssumeRole' in p else {}
+                    c = {}
+                    if 'Route53RoleArn' in p:
+                        c = client('sts').assume_role(
+                            RoleArn=p['Route53RoleArn'],
+                            RoleSessionName='cdc'
+                        )['Credentials']
                     r = client('route53',
                         aws_access_key_id=c.get('AccessKeyId'),
                         aws_secret_access_key=c.get('SecretAccessKey'),
