@@ -1,0 +1,49 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.5.0] - 2019-01-26
+### Added
+- `Route53RoleArn` is now a property of DomainValidationOption, allowing a different role per hosted zone
+- `Route53RoleArn` can be specified using troposphere, which automatically modifies the execution policy
+
+### Changed
+- Lambda runtime increased to 15 minutes, with total issuance timeout decreased to 30 minutes
+
+### Fixed
+- Will no longer occasionally create multiple certificates when issuance took over 5 minutes
+- Deletion is more robust and will be retried for up to 15 minutes if certificate is in use
+
+## [1.4.0] - 2018-11-30
+### Added
+- `Route53RoleArn` property for creating certificates for hosted zones in other accounts - Thanks pitkley
+
+## [1.3.0] - 2018-10-10
+### Added
+- `Region` property for creating certificates in other regions
+
+## [1.2.1] - 2018-10-07
+### Fixed
+- `SignatureDoesNotMatch` error in some regions - Thanks mseiwald
+
+## [1.2.0] - 2018-06-13
+### Fixed
+- Allow using a parent domain for the HostedZoneId 
+
+## [1.1.0] - 2018-05-28
+### Changed
+- Better handle issuance failure
+
+## [1.0.0] - 2018-05-26
+### Added
+- First release
+
+[1.5.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/a64051e43ae8696c898b6634fbe663abc4a87785...1.5.0
+[1.4.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/d0884b638cb2e7873aa7b7f9fda2a1bf377d8892...a64051e43ae8696c898b6634fbe663abc4a87785
+[1.3.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/91ef66d068be9fbc97882ae8c6bf51e0d875f9fd...d0884b638cb2e7873aa7b7f9fda2a1bf377d8892
+[1.2.1]: https://github.com/dflook/cloudformation-dns-certificate/compare/3571b4d09435608913857a521aa8d1acbf031d55...91ef66d068be9fbc97882ae8c6bf51e0d875f9fd
+[1.2.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/aaa0d29fd7ece40904e1b1e6add88a12a2dbe6bc...3571b4d09435608913857a521aa8d1acbf031d55
+[1.1.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/360a41fb3910fd1ec58f466be4ee8f36bc7ccbb9...aaa0d29fd7ece40904e1b1e6add88a12a2dbe6bc
+[1.0.0]: https://github.com/dflook/cloudformation-dns-certificate/commit/c393fe6f86dd2ce3601ec56422d200441ae0f576
