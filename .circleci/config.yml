@@ -19,7 +19,7 @@ jobs:
           pip3 install --upgrade setuptools wheel twine pip
           python3 setup.py sdist bdist_wheel
 
-          twine upload --sign dist/*
+          twine upload --sign --skip-existing dist/*
 
     - store_artifacts:
         path: dist/

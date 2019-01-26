@@ -29,8 +29,7 @@ If you are using troposphere you can install this resource as an extension using
 
     $ pip install troposphere_dns_certificate
 
-You can then import the Certificate resource from troposphere_dns_certificate.certificatemanager instead of 
-troposphere.certificatemanager. 
+You can then import the Certificate resource from troposphere_dns_certificate.certificatemanager instead of troposphere.certificatemanager. 
 
 cloudformation.py is an example of using troposphere to create a template with a Certificate resource. 
 
@@ -155,6 +154,9 @@ ExampleCertificate:
 In some cases the account owning the hosted zone might be a different one than the one you are generating the certificate in.
 To support this you can specify the domain validation option property `Route53RoleArn` with a role-ARN that should be 
 assumed before creating the records required for certificate validation.
+
+If a top-level Route53RoleArn property is specified it will be assumed when validating domains that don't contain a
+Route53RoleArn domain validation option property.
 
 ```yaml
 ExampleCertificate:
