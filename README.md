@@ -20,7 +20,7 @@ Certificates may take up to 30 minutes to be issued, but typically takes ~3 minu
 CREATE_IN_PROGRESS until the certificate is issued.
 
 To use this custom resource, copy the CustomAcmCertificateLambda and CustomAcmCertificateLambdaExecutionRole resources
-into your template. You can then create certificate resources of Type: AWS::CloudFormation::CustomResource using the
+into your template. You can then create certificate resources of Type: Custom::DNSCertificate using the
 properties you expect. Remember to add a ServiceToken property to the resource which references the CustomAcmCertificateLambda arn.
 
 ### Troposphere
@@ -41,18 +41,21 @@ resources from the cloudformation.json or cloudformation.yaml files.
 
 The certificate resource looks like:
 
-    ExampleCertificate:
-        Properties:
-          DomainName: test.example.com        
-          ValidationMethod: DNS
-          DomainValidationOptions:
-            - DomainName: test.example.com
-              HostedZoneId: Z2KZ5YTUFZNC7H
-          Tags:
-            - Key: Name
-              Value: Example Certificate
-          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
-        Type: AWS::CloudFormation::CustomResource
+```yaml
+ExampleCertificate:
+  Properties:
+    DomainName: test.example.com
+    ValidationMethod: DNS
+    DomainValidationOptions:
+      - DomainName: test.example.com
+        HostedZoneId: Z2KZ5YTUFZNC7H
+    Tags:
+      - Key: Name
+        Value: Example Certificate
+    ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+  Type: Custom::DNSCertificate
+```
+
 
 As with AWS::CertificateManager::Certificate providing the logical ID of the resource to the Ref function returns the certificate ARN.
 
@@ -64,116 +67,191 @@ Additional names can be added to the certificate using the SubjectAlternativeNam
 present for each name. A DomainValidationOptions for a parent domain can be used for names that have the same HostedZoneId.
 For example:
 
-    ExampleCertificate:
-        Properties:
-          DomainName: example.com
-          SubjectAlternativeNames:
-            - additional.example.com
-            - another.example.com    
-          ValidationMethod: DNS
-          DomainValidationOptions:
-            - DomainName: example.com
-              HostedZoneId: Z2KZ5YTUFZNC7H
-          Tags:
-            - Key: Name
-              Value: Example Certificate
-          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
-    Type: AWS::CloudFormation::CustomResource
+```yaml
+ExampleCertificate:
+  Properties:
+    DomainName: example.com
+    SubjectAlternativeNames:
+      - additional.example.com
+      - another.example.com
+    ValidationMethod: DNS
+    DomainValidationOptions:
+      - DomainName: example.com
+        HostedZoneId: Z2KZ5YTUFZNC7H
+    Tags:
+      - Key: Name
+        Value: Example Certificate
+    ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+Type: Custom::DNSCertificate
+```
 
 ### Multiple Hosted Zones
 
 Names from multiple hosted zones can be used by adding DomainValidationOptions for each of the hosted zones.
 For example:
 
-    ExampleCertificate:
-        Properties:
-          DomainName: example.com
-          SubjectAlternativeNames:
-            - additional.example.org
-          ValidationMethod: DNS
-          DomainValidationOptions:
-            - DomainName: example.com
-              HostedZoneId: Z2KZ5YTUFZNC7H
-            - DomainName: example.org
-              HostedZoneId: ZEJZ9DIN47IQN              
-          Tags:
-            - Key: Name
-              Value: Example Certificate
-          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
-    Type: AWS::CloudFormation::CustomResource
+```yaml
+ExampleCertificate:
+  Properties:
+    DomainName: example.com
+    SubjectAlternativeNames:
+      - additional.example.org
+    ValidationMethod: DNS
+    DomainValidationOptions:
+      - DomainName: example.com
+        HostedZoneId: Z2KZ5YTUFZNC7H
+      - DomainName: example.org
+        HostedZoneId: ZEJZ9DIN47IQN
+    Tags:
+      - Key: Name
+        Value: Example Certificate
+    ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+Type: Custom::DNSCertificate
+```
 
 ### Wildcards
 
 Wildcards can be used normally. A certificate for a name and all subdomains for example:
 
-    ExampleCertificate:
-        Properties:
-          DomainName: example.com   
-          SubjectAlternativeNames:
-            - *.example.com               
-          ValidationMethod: DNS
-          DomainValidationOptions:
-            - DomainName: example.com
-              HostedZoneId: Z2KZ5YTUFZNC7H
-          Tags:
-            - Key: Name
-              Value: Example Certificate
-          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
-        Type: AWS::CloudFormation::CustomResource
+```yaml
+ExampleCertificate:
+  Properties:
+    DomainName: example.com
+    SubjectAlternativeNames:
+      - *.example.com
+    ValidationMethod: DNS
+    DomainValidationOptions:
+      - DomainName: example.com
+        HostedZoneId: Z2KZ5YTUFZNC7H
+    Tags:
+      - Key: Name
+        Value: Example Certificate
+    ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+  Type: Custom::DNSCertificate
+```
 
 ### Specifying a region
 
 This example uses the Region property to create the certificate in us-east-1, for use with cloudfront:
 
-    ExampleCertificate:
-        Properties:
-          DomainName: example.com          
-          ValidationMethod: DNS
-          DomainValidationOptions:
-            - DomainName: example.com
-              HostedZoneId: Z2KZ5YTUFZNC7H
-          Region: us-east-1
-          Tags:
-            - Key: Name
-              Value: Example Certificate
-          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
-        Type: AWS::CloudFormation::CustomResource
+```yaml
+ExampleCertificate:
+  Properties:
+    DomainName: example.com
+    ValidationMethod: DNS
+    DomainValidationOptions:
+      - DomainName: example.com
+        HostedZoneId: Z2KZ5YTUFZNC7H
+    Region: us-east-1
+    Tags:
+      - Key: Name
+        Value: Example Certificate
+    ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+  Type: Custom::DNSCertificate
+```
 
 ### Assuming a role for Route 53 record creation
 
 In some cases the account owning the hosted zone might be a different one than the one you are generating the certificate in.
-To support this you can specify the top-level property `Route53RoleArn` with a role-ARN that should be assumed before creating the records required for certificate validation.
+To support this you can specify the domain validation option property `Route53RoleArn` with a role-ARN that should be 
+assumed before creating the records required for certificate validation.
 
-    ExampleCertificate:
-        Properties:
-          DomainName: test.example.com
-          ValidationMethod: DNS
-          DomainValidationOptions:
-            - DomainName: test.example.com
-              HostedZoneId: Z2KZ5YTUFZNC7H
-          Route53RoleArn: arn:aws:iam::123412341234:role/RoleAllowedToEditHostedZone
-          Tags:
-            - Key: Name
-              Value: Example Certificate
-          ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
-        Type: AWS::CloudFormation::CustomResource
+```yaml
+ExampleCertificate:
+  Properties:
+    DomainName: test.example.com
+    ValidationMethod: DNS
+    DomainValidationOptions:
+      - DomainName: test.example.com
+        HostedZoneId: Z2KZ5YTUFZNC7H
+        Route53RoleArn: arn:aws:iam::TRUSTING-ACCOUNT-ID:role/ACMRecordCreationRole
+    Tags:
+      - Key: Name
+        Value: Example Certificate
+    ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'
+  Type: Custom::DNSCertificate
+```
 
-Additionally you have to allow the assumption of this role through the execution role, e.g.:
+Additionally you have to allow the assumption of this role by adding this statement to the CustomAcmCertificateLambdaExecutionRole:
 
-    CustomAcmCertificateLambdaExecutionRole:
-      Properties:
-        ...
-        Policies:
-          - PolicyDocument:
-              Statement:
-                ...
-                - Action:
-                    - sts:AssumeRole
-                  Effect: Allow
-                  Resource:
-                    - arn:aws:iam::123412341234:role/RoleAllowedToEditHostedZone
+```yaml
+- Action:
+    - sts:AssumeRole
+  Resource:
+    - arn:aws:iam::TRUSTING-ACCOUNT-ID:role/ACMRecordCreationRole
+  Effect: Allow
+```
 
-Note:
+If you are using the troposphere library, this statement is added automatically. The full CustomAcmCertificateLambdaExecutionRole
+for this example would look like:
 
-* This property is only used if you use `ValidationMethod: DNS`.
-* It is currently not supported to assume different roles for different hosted zones.
+```yaml
+CustomAcmCertificateLambdaExecutionRole:
+  Properties:
+  AssumeRolePolicyDocument:
+    Statement:
+      - Action:
+          - sts:AssumeRole
+        Effect: Allow
+        Principal:
+          Service: lambda.amazonaws.com
+    Version: '2012-10-17'
+  ManagedPolicyArns:
+    - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+  Policies:
+    - PolicyDocument:
+      Statement:
+        - Action:
+            - acm:AddTagsToCertificate
+            - acm:DeleteCertificate
+            - acm:DescribeCertificate
+            - acm:RemoveTagsFromCertificate
+            - acm:RequestCertificate
+          Effect: Allow
+          Resource:
+            - !Sub 'arn:aws:acm:*:${AWS::AccountId}:certificate/*'
+        - Action:
+            - acm:RequestCertificate
+          Effect: Allow
+          Resource:
+            - '*'
+        - Action:
+            - route53:ChangeResourceRecordSets
+          Effect: Allow
+          Resource:
+            - arn:aws:route53:::hostedzone/*
+        - Action:
+            - sts:AssumeRole
+          Effect: Allow
+          Resource:
+            - arn:aws:iam::TRUSTING-ACCOUNT-ID:role/ACMRecordCreationRole
+```
+
+The IAM role in the account with the hosted zone would look something like:
+
+```yaml
+ACMRecordCreationRole:
+  Type: AWS::IAM::Role
+  Properties:
+    AssumeRolePolicyDocument:
+      Statement:
+        - Action:
+            - sts:AssumeRole
+          Principal:
+            AWS:
+              - arn:aws:iam::TRUSTED-ACCOUNT-ID:root
+          Effect: Allow
+      Version: '2012-10-17'
+    Policies:
+      - PolicyName: 'ACMRecordCreation'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Action:
+                - route53:ChangeResourceRecordSets
+              Resource:
+                - arn:aws:route53:::hostedzone/Z2KZ5YTUFZNC7H
+              Effect: Allow
+    RoleName: ACMRecordCreationRole
+```
