@@ -12,7 +12,7 @@ import logging
 import time
 
 from boto3 import client
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ParamValidationError
 from botocore.vendored import requests
 
 acm = 0
@@ -274,10 +274,14 @@ def delete_certificate(arn, context):
                 time.sleep(5)
                 continue
 
-            elif err_code == 'ResourceNotFoundException':
+            elif err_code in ['ResourceNotFoundException', 'ValidationException']:
+                # If the arn is invalid, it didn't exist anyway.
                 return
 
             break
+        except ParamValidationError:
+            # invalid arn
+            return
 
     raise RuntimeError(err_msg)
 
