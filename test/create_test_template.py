@@ -6,7 +6,8 @@ import string
 from troposphere import Template, Ref, Output
 import troposphere_dns_certificate.certificatemanager as certificatemanager
 
-def create_template(zone_name, zone_id, additional_zone_name, additional_zone_id):
+
+def create_template(zone_name, zone_id, zone_arn, additional_zone_name, additional_zone_id, additional_zone_arn):
     template = Template(
         Description='DNS Validated ACM Certificate Test'
     )
@@ -25,11 +26,13 @@ def create_template(zone_name, zone_id, additional_zone_name, additional_zone_id
         DomainValidationOptions=[
             certificatemanager.DomainValidationOption(
                 DomainName=zone_name,
-                HostedZoneId=zone_id
+                HostedZoneId=zone_id,
+                Route53RoleArn=zone_arn
             ),
             {
                 'DomainName': additional_zone_name,
-                'HostedZoneId': additional_zone_id
+                'HostedZoneId': additional_zone_id,
+                'Route53RoleArn': additional_zone_arn
             }
         ],
         Tags=[{
@@ -51,19 +54,25 @@ def create_template(zone_name, zone_id, additional_zone_name, additional_zone_id
                 HostedZoneId=zone_id
             )
         ],
+        Route53RoleArn=zone_arn,
         Tags=[{
             'Key': 'Name',
             'Value': 'Test Region Certificate'
         }],
-        Region='us-east-1'
+        Region='eu-west-3'
     ))
 
     return template
 
 
 if __name__ == '__main__':
-    if (len(sys.argv) < 2):
-        print('Usage: create_test_template.py <ZONE_NAME> <ZONE_ID> <ZONE2_NAME> <ZONE2_ID>')
+    if (len(sys.argv) < 6):
+        print('Usage: create_test_template.py <ZONE_NAME> <ZONE_ID> <ZONE_ARN> <ZONE2_NAME> <ZONE2_ID> <ZONE2_ARN>')
 
-    template = create_template(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    template = create_template(sys.argv[1],
+                               sys.argv[2],
+                               sys.argv[3],
+                               sys.argv[4],
+                               sys.argv[5],
+                               sys.argv[6])
     print(template.to_yaml())
