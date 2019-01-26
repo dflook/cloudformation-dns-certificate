@@ -22,6 +22,6 @@ setup(
     packages=find_packages('src'),
     long_description=long_desc,
     long_description_content_type='text/markdown',
-    install_requires=['troposphere', 'awacs', 'wrapt', 'python_minifier'],
+    install_requires=['troposphere', 'awacs', 'wrapt', 'python_minifier >= 2.1.0', 'boto3'],
     zip_safe=False
 )
