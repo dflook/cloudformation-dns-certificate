@@ -259,16 +259,18 @@ def delete_certificate(arn, context):
 
     """
 
-    err_msg = 'Timeout waiting for delete_certificate'
+    err_msg = 'Failed to delete certificate'
 
     while (context.get_remaining_time_in_millis() / 1000) > 30:
 
         try:
             acm.delete_certificate(CertificateArn=arn)
+            return
         except ClientError as e:
+            logger.exception('Failed to delete certificate')
+
             err_code = e.response['Error']['Code']
             err_msg = e.response['Error']['Message']
-            logger.info(err_msg)
 
             if err_code == 'ResourceInUseException':
                 time.sleep(5)
@@ -278,13 +280,14 @@ def delete_certificate(arn, context):
                 # If the arn is invalid, it didn't exist anyway.
                 return
 
-            break
+            raise
+
         except ParamValidationError:
             # invalid arn
+            logger.exception('Failed to delete certificate')
             return
 
     raise RuntimeError(err_msg)
-
 
 def handler(event, context):
     """
