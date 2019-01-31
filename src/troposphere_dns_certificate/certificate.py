@@ -77,9 +77,13 @@ def create_cert(props, i_token):
     )['CertificateArn']
 
 
-def add_tags(arn, props):
-    if 'Tags' in props:
-        acm.add_tags_to_certificate(CertificateArn=arn, Tags=props['Tags'])
+def add_tags(arn, event):
+    tags = copy.copy(event['ResourceProperties'].get('Tags', []))
+    tags['aws:cloudformation:' + 'logical-id'] = event['LogicalResourceId']
+    tags['aws:cloudformation:' + 'stack-id'] = event['StackId']
+    tags['aws:cloudformation:' + 'stack-name'] = event['StackId'].split('/')[1]
+
+    acm.add_tags_to_certificate(**{'CertificateArn': arn, 'Tags': tags})
 
 
 def get_zone_for(name, props):
@@ -122,7 +126,7 @@ def validate(event, props):
         while not done:
             done = True
 
-            cert = acm.describe_certificate(CertificateArn=event['PhysicalResourceId'])['Certificate']
+            cert = acm.describe_certificate(**{'CertificateArn':event['PhysicalResourceId']})['Certificate']
             logger.info(cert)
 
             if cert['Status'] != 'PENDING_VALIDATION':
@@ -149,9 +153,9 @@ def validate(event, props):
                         aws_access_key_id=sts.get('AccessKeyId', None),
                         aws_secret_access_key=sts.get('SecretAccessKey', None),
                         aws_session_token=sts.get('SessionToken', None),
-                    ).change_resource_record_sets(
-                        HostedZoneId=hosted_zone['HostedZoneId'],
-                        ChangeBatch={
+                    ).change_resource_record_sets(**{
+                        'HostedZoneId': hosted_zone['HostedZoneId'],
+                        'ChangeBatch': {
                             'Comment': 'Domain validation for ' + event['PhysicalResourceId'],
                             'Changes': [{
                                 'Action': 'UPSERT',
@@ -162,7 +166,7 @@ def validate(event, props):
                                     'ResourceRecords': [{'Value': validation_option['ResourceRecord']['Value']}],
                                 },
                             }],
-                        },
+                        }},
                     )
 
                     logger.info(route53)
@@ -181,7 +185,7 @@ def replace_cert(event):
 
     """
 
-    old = copy.copy(event['OldResourceProperties'])
+    old = copy.copy(event['Old' + 'ResourceProperties'])
     old.pop('Tags', None)
 
     new = copy.copy(event['ResourceProperties'])
@@ -205,7 +209,7 @@ def wait_for_issuance(arn, context):
 
     while (context.get_remaining_time_in_millis() / 1000) > 30:
 
-        cert = acm.describe_certificate(CertificateArn=arn)['Certificate']
+        cert = acm.describe_certificate(**{'CertificateArn': arn})['Certificate']
         logger.info(cert)
 
         if cert['Status'] == 'ISSUED':
@@ -246,6 +250,34 @@ def reinvoke(event, context):
         Payload=json.dumps(event).encode()
     )
 
+def find_certificate(arn, event):
+    """
+    Find the certificate if the create is cancelled
+
+    This could happen if the stack fails and needs to rollback.
+    The DELETE request will be issued before the CREATE returns the arn.
+
+    Hopefully the CREATE is still validating but has already created tags,
+    so find the certificate with the correct tag.
+
+    :param event: The lambda event
+    :rtype: str
+
+    """
+
+    if arn.startswith('arn:aws:acm:'):
+        return arn
+
+    for page in acm.get_paginator('list_certificates').paginate():
+        for certificate in page['CertificateSummaryList']:
+
+            tags = {tag['Key']: tag['Value'] for tag in acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
+            if (tags.get('aws:cloudformation:' + 'logical-id', None) == event['LogicalResourceId'] and
+                tags.get('aws:cloudformation:' + 'stack-id', None) == event['StackId']):
+
+                return certificate['CertificateArn']
+
+    return arn
 
 def delete_certificate(arn, context):
     """
@@ -264,7 +296,7 @@ def delete_certificate(arn, context):
     while (context.get_remaining_time_in_millis() / 1000) > 30:
 
         try:
-            acm.delete_certificate(CertificateArn=arn)
+            acm.delete_certificate(**{'CertificateArn': arn})
             return
         except ClientError as e:
             logger.exception('Failed to delete certificate')
@@ -314,7 +346,7 @@ def handler(event, context):
             if event.get('Reinvoked', False) is False:
                 event['PhysicalResourceId'] = 'None'
                 event['PhysicalResourceId'] = create_cert(props, i_token)
-                add_tags(event['PhysicalResourceId'], props)
+                add_tags(event['PhysicalResourceId'], event)
 
             validate(event, props)
 
@@ -326,7 +358,7 @@ def handler(event, context):
         elif event['RequestType'] == 'Delete':
 
             if event['PhysicalResourceId'] != 'None':
-                delete_certificate(event['PhysicalResourceId'], context)
+                delete_certificate(find_certificate(event['PhysicalResourceId'], event), context)
 
             return send(event)
 
@@ -335,20 +367,20 @@ def handler(event, context):
             if replace_cert(event):
                 if event.get('Reinvoked', False) is False:
                     event['PhysicalResourceId'] = create_cert(props, i_token)
-                    add_tags(event['PhysicalResourceId'], props)
+                    add_tags(event['PhysicalResourceId'], event)
 
                 validate(event, props)
 
                 if not wait_for_issuance(event['PhysicalResourceId'], context):
                     return reinvoke(event, context)
             else:
-                if 'Tags' in event['OldResourceProperties']:
-                    acm.remove_tags_from_certificate(
-                        CertificateArn=event['PhysicalResourceId'],
-                        Tags=event['OldResourceProperties']['Tags']
-                    )
+                if 'Tags' in event['Old' + 'ResourceProperties']:
+                    acm.remove_tags_from_certificate(**{
+                        'CertificateArn': event['PhysicalResourceId'],
+                        'Tags': event['Old' + 'ResourceProperties']['Tags']
+                    })
 
-                add_tags(event['PhysicalResourceId'], props)
+                add_tags(event['PhysicalResourceId'], event)
 
             return send(event)
 
