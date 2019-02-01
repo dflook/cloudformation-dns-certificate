@@ -8,7 +8,7 @@ with open(readme_path) as f:
 setup(
     name='troposphere-dns-certificate',
     description='Cloudformation DNS validated certificate resource for troposphere',
-    version='1.5.1',
+    version='1.6.0',
     author='Daniel Flook',
     author_email='daniel@flook.org',
     url='https://github.com/dflook/cloudformation-dns-certificate',

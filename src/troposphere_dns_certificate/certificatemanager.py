@@ -53,11 +53,19 @@ def add_helpers(template):
                                         Action('acm', 'DeleteCertificate'),
                                         Action('acm', 'DescribeCertificate'),
                                         Action('acm', 'RemoveTagsFromCertificate'),
-                                        Action('acm', 'RequestCertificate'),
+
                                     ],
                                     Resource=[Sub('arn:aws:acm:*:${AWS::AccountId}:certificate/*')],
                                 ),
-                                Statement(Effect=Allow, Action=[Action('acm', 'RequestCertificate')], Resource=['*']),
+                                Statement(
+                                    Effect=Allow,
+                                    Action=[
+                                        Action('acm', 'RequestCertificate'),
+                                        Action('acm', 'ListTagsForCertificate'),
+                                        Action('acm', 'ListCertificates')
+                                    ],
+                                    Resource=['*']
+                                ),
                             ],
                         ),
                     )

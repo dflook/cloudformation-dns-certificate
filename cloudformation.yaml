@@ -8,52 +8,53 @@ Resources:
   CustomAcmCertificateLambda:
     Metadata:
       Source: https://github.com/dflook/cloudformation-dns-certificate
-      Version: 1.5.0
+      Version: 1.6.0
     Properties:
       Code:
-        ZipFile: "l='FAILED'\nk='ResourceProperties'\nj='Certificate'\ni=' missing'\n\
-          h='DNS'\ng='Region'\nZ='OldResourceProperties'\nY=True\nX='DomainName'\n\
-          W='Route53RoleArn'\nQ='Reinvoked'\nP='ValidationMethod'\nM='Status'\nF='DomainValidationOptions'\n\
-          I=RuntimeError\nH='Tags'\nG=False\nD=None\nC='PhysicalResourceId'\nimport\
-          \ copy as J,hashlib as a,json,logging as A,time as N\nfrom boto3 import\
-          \ client as K\nfrom botocore.exceptions import ClientError as b,ParamValidationError\
-          \ as c\nfrom botocore.vendored import requests as d\nE=0\nB=A.getLogger()\n\
-          B.setLevel(A.INFO)\ndef L(event):A=event;B.info(A);C=d.put(A['ResponseURL'],json=A,headers={'content-type':''});B.info(C.content);C.raise_for_status()\n\
-          def R(props,i_token):\n\tA=props;B=J.copy(A);del B['ServiceToken'];B.pop(g,D);B.pop(H,D);B.pop(W,D)\n\
-          \tif P in A:\n\t\tif A[P]==h:\n\t\t\ttry:\n\t\t\t\tfor C in set([A[X]]+A.get('SubjectAlternativeNames',[])):S(C,A)\n\
-          \t\t\texcept KeyError:raise I(F+i)\n\t\t\tdel B[F]\n\treturn E.request_certificate(IdempotencyToken=i_token,**B)['CertificateArn']\n\
-          def O(arn,props):\n\tA=props\n\tif H in A:E.add_tags_to_certificate(CertificateArn=arn,Tags=A[H])\n\
-          def S(name,props):\n\tC='.';B=name;B=B.rstrip(C);D={A[X].rstrip(C):A for\
-          \ A in(props[F])};A=B.split(C)\n\twhile len(A):\n\t\tif C.join(A)in D:return\
-          \ D[C.join(A)]\n\t\tA=A[1:]\n\traise I(F+i+' for '+B)\ndef T(event,props):\n\
-          \tc='Value';b='Type';a='Name';Z='ValidationStatus';V='PENDING_VALIDATION';Q='ResourceRecord';I=event;H=props\n\
-          \tif P in H and H[P]==h:\n\t\tJ=G\n\t\twhile not J:\n\t\t\tJ=Y;L=E.describe_certificate(CertificateArn=I[C])[j];B.info(L)\n\
-          \t\t\tif L[M]!=V:return\n\t\t\tfor A in L[F]:\n\t\t\t\tif Z not in A or\
-          \ Q not in A:J=G;continue\n\t\t\t\tif A[Z]==V:R=S(A[X],H);T=R.get(W,H.get(W,D));O=K('sts').assume_role(RoleArn=T,RoleSessionName=('DNSCertificate'+I['LogicalResourceId'])[:64],DurationSeconds=900)['Credentials']if\
-          \ T is not D else{};U=K('route53',aws_access_key_id=O.get('AccessKeyId',D),aws_secret_access_key=O.get('SecretAccessKey',D),aws_session_token=O.get('SessionToken',D)).change_resource_record_sets(HostedZoneId=R['HostedZoneId'],ChangeBatch={'Comment':'Domain\
-          \ validation for '+I[C],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{a:A[Q][a],b:A[Q][b],'TTL':60,'ResourceRecords':[{c:A[Q][c]}]}}]});B.info(U)\n\
-          \t\t\tN.sleep(1)\ndef e(event):A=event;B=J.copy(A[Z]);B.pop(H,D);C=J.copy(A[k]);C.pop(H,D);return\
-          \ B!=C\ndef U(arn,context):\n\twhile context.get_remaining_time_in_millis()/1000>30:\n\
-          \t\tA=E.describe_certificate(CertificateArn=arn)[j];B.info(A)\n\t\tif A[M]=='ISSUED':return\
-          \ Y\n\t\telif A[M]==l:raise I(A.get('FailureReason','Failed to issue certificate'))\n\
-          \t\tN.sleep(5)\n\treturn G\ndef V(event,context):\n\tA=event\n\tif A.get(Q,G):raise\
-          \ I('Certificate not issued in time')\n\tA[Q]=Y;B.info('Reinvoking');B.info(A);K('lambda').invoke(FunctionName=context.invoked_function_arn,InvocationType='Event',Payload=json.dumps(A).encode())\n\
-          def f(arn,context):\n\tG='Error';F='Failed to delete certificate';A=F\n\t\
-          while context.get_remaining_time_in_millis()/1000>30:\n\t\ttry:E.delete_certificate(CertificateArn=arn);return\n\
-          \t\texcept b as C:\n\t\t\tB.exception(F);D=C.response[G]['Code'];A=C.response[G]['Message']\n\
-          \t\t\tif D=='ResourceInUseException':N.sleep(5);continue\n\t\t\telif D in['ResourceNotFoundException','ValidationException']:return\n\
-          \t\t\traise\n\t\texcept c:B.exception(F);return\n\traise I(A)\ndef handler(event,context):\n\
-          \tW='None';P='RequestType';J=context;A=event;B.info(A)\n\ttry:\n\t\tN=a.new('md5',(A['RequestId']+A['StackId']).encode()).hexdigest();F=A[k];global\
-          \ E;E=K('acm',region_name=F.get(g,D));A[M]='SUCCESS'\n\t\tif A[P]=='Create':\n\
-          \t\t\tif A.get(Q,G)is G:A[C]=W;A[C]=R(F,N);O(A[C],F)\n\t\t\tT(A,F)\n\t\t\
-          \tif U(A[C],J):return L(A)\n\t\t\telse:return V(A,J)\n\t\telif A[P]=='Delete':\n\
-          \t\t\tif A[C]!=W:f(A[C],J)\n\t\t\treturn L(A)\n\t\telif A[P]=='Update':\n\
-          \t\t\tif e(A):\n\t\t\t\tif A.get(Q,G)is G:A[C]=R(F,N);O(A[C],F)\n\t\t\t\t\
-          T(A,F)\n\t\t\t\tif not U(A[C],J):return V(A,J)\n\t\t\telse:\n\t\t\t\tif\
-          \ H in A[Z]:E.remove_tags_from_certificate(CertificateArn=A[C],Tags=A[Z][H])\n\
-          \t\t\t\tO(A[C],F)\n\t\t\treturn L(A)\n\t\telse:raise I('Unknown RequestType')\n\
-          \texcept Exception as S:B.exception('');A[M]=l;A['Reason']=str(S);return\
-          \ L(A)"
+        ZipFile: "H=RuntimeError\nimport copy as L,hashlib as m,json,logging as B,time\
+          \ as S\nfrom boto3 import client as M\nfrom botocore.exceptions import ClientError\
+          \ as n,ParamValidationError as o\nfrom botocore.vendored import requests\
+          \ as p\nA=B.getLogger()\nA.setLevel(B.INFO)\nC=A.info\nT=A.exception\ndef\
+          \ handler(e,c):\n\tA1='None';A0='FAILED';z='stack-id';y='logical-id';x='\
+          \ missing';w='DNS';v='Region';l='RequestType';k='Old';j='Certificate';i=True;h='LogicalResourceId';g='DomainName';f='Route53RoleArn';X='StackId';W='Key';V='ValidationMethod';R='Status';Q='Reinvoked';P='cloudformation:';O='DomainValidationOptions';K='ResourceProperties';J='Value';I=None;G=False;F='CertificateArn';E='Tags';A='PhysicalResourceId';C(e)\n\
+          \tdef Y():\n\t\tA=L.copy(B);del A['ServiceToken'];A.pop(v,I);A.pop(E,I);A.pop(f,I)\n\
+          \t\tif V in B:\n\t\t\tif B[V]==w:\n\t\t\t\ttry:\n\t\t\t\t\tfor C in set([B[g]]+B.get('SubjectAlternativeNames',[])):d(C)\n\
+          \t\t\t\texcept KeyError:raise H(O+x)\n\t\t\t\tdel A[O]\n\t\treturn D.request_certificate(IdempotencyToken=t,**A)[F]\n\
+          \tdef q(a):\n\t\tG='Error';E='Failed to delete certificate';A=E\n\t\twhile\
+          \ c.get_remaining_time_in_millis()/1000>30:\n\t\t\ttry:D.delete_certificate(**{F:a});return\n\
+          \t\t\texcept n as B:\n\t\t\t\tT(E);C=B.response[G]['Code'];A=B.response[G]['Message']\n\
+          \t\t\t\tif C=='ResourceInUseException':S.sleep(5);continue\n\t\t\t\telif\
+          \ C in['ResourceNotFoundException','ValidationException']:return\n\t\t\t\
+          \traise\n\t\t\texcept o:T(E);return\n\t\traise H(A)\n\tdef r(a):\n\t\tif\
+          \ a.startswith('arn:'):return a\n\t\tfor C in D.get_paginator('list_certificates').paginate():\n\
+          \t\t\tfor A in C['CertificateSummaryList']:\n\t\t\t\tB={B[W]:B[J]for B in(D.list_tags_for_certificate(**{F:A[F]})[E])}\n\
+          \t\t\t\tif B.get(P+y)==e[h]and B.get(P+z)==e[X]:return A[F]\n\t\treturn\
+          \ a\n\tdef Z():\n\t\tif e.get(Q,G):raise H('Certificate not issued in time')\n\
+          \t\te[Q]=i;C(Q);C(e);M('lambda').invoke(FunctionName=c.invoked_function_arn,InvocationType='Event',Payload=json.dumps(e).encode())\n\
+          \tdef a(a):\n\t\twhile c.get_remaining_time_in_millis()/1000>30:\n\t\t\t\
+          A=D.describe_certificate(**{F:a})[j];C(A)\n\t\t\tif A[R]=='ISSUED':return\
+          \ i\n\t\t\telif A[R]==A0:raise H(A.get('FailureReason','Failed to issue\
+          \ certificate'))\n\t\t\tS.sleep(5)\n\t\treturn G\n\tdef s():A=L.copy(e[k+K]);A.pop(E,I);B=L.copy(e[K]);B.pop(E,I);return\
+          \ A!=B\n\tdef b():\n\t\tZ='Type';Y='Name';X='HostedZoneId';W='ValidationStatus';U='PENDING_VALIDATION';N='ResourceRecord'\n\
+          \t\tif V in B and B[V]==w:\n\t\t\tH=G\n\t\t\twhile not H:\n\t\t\t\tH=i;K=D.describe_certificate(**{F:e[A]})[j];C(K)\n\
+          \t\t\t\tif K[R]!=U:return\n\t\t\t\tfor E in K[O]:\n\t\t\t\t\tif W not in\
+          \ E or N not in E:H=G;continue\n\t\t\t\t\tif E[W]==U:P=d(E[g]);Q=P.get(f,B.get(f));L=M('sts').assume_role(RoleArn=Q,RoleSessionName=(j+e[h])[:64],DurationSeconds=900)['Credentials']if\
+          \ Q is not I else{};T=M('route53',aws_access_key_id=L.get('AccessKeyId'),aws_secret_access_key=L.get('SecretAccessKey'),aws_session_token=L.get('SessionToken')).change_resource_record_sets(**{X:P[X],'ChangeBatch':{'Comment':'Domain\
+          \ validation for '+e[A],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{Y:E[N][Y],Z:E[N][Z],'TTL':60,'ResourceRecords':[{J:E[N][J]}]}}]}});C(T)\n\
+          \t\t\t\tS.sleep(1)\n\tdef d(n):\n\t\tC='.';n=n.rstrip(C);D={A[g].rstrip(C):A\
+          \ for A in(B[O])};A=n.split(C)\n\t\twhile len(A):\n\t\t\tif C.join(A)in\
+          \ D:return D[C.join(A)]\n\t\t\tA=A[1:]\n\t\traise H(O+x+' for '+n)\n\tdef\
+          \ U(a):A=L.copy(e[K].get(E,[]));A+=[{W:P+y,J:e[h]},{W:P+z,J:e[X]},{W:P+'stack-name',J:e[X].split('/')[1]}];D.add_tags_to_certificate(**{F:a,E:A})\n\
+          \tdef N():C(e);A=p.put(e['ResponseURL'],json=e,headers={'content-type':''});C(A.content);A.raise_for_status()\n\
+          \ttry:\n\t\tt=m.new('md5',(e['RequestId']+e[X]).encode()).hexdigest();B=e[K];D=M('acm',region_name=B.get(v));e[R]='SUCCESS'\n\
+          \t\tif e[l]=='Create':\n\t\t\tif e.get(Q,G)is G:e[A]=A1;e[A]=Y();U(e[A])\n\
+          \t\t\tb()\n\t\t\tif a(e[A]):return N()\n\t\t\telse:return Z()\n\t\telif\
+          \ e[l]=='Delete':\n\t\t\tif e[A]!=A1:q(r(e[A]))\n\t\t\treturn N()\n\t\t\
+          elif e[l]=='Update':\n\t\t\tif s():\n\t\t\t\tif e.get(Q,G)is G:e[A]=Y();U(e[A])\n\
+          \t\t\t\tb()\n\t\t\t\tif not a(e[A]):return Z()\n\t\t\telse:\n\t\t\t\tif\
+          \ E in e[k+K]:D.remove_tags_from_certificate(**{F:e[A],E:e[k+K][E]})\n\t\
+          \t\t\tU(e[A])\n\t\t\treturn N()\n\t\telse:raise H('Unknown RequestType')\n\
+          \texcept Exception as u:T('');e[R]=A0;e['Reason']=str(u);return N()"
       Description: Cloudformation custom resource for DNS validated certificates
       Handler: index.handler
       Role: !GetAtt 'CustomAcmCertificateLambdaExecutionRole.Arn'
@@ -81,12 +82,13 @@ Resources:
                   - acm:DeleteCertificate
                   - acm:DescribeCertificate
                   - acm:RemoveTagsFromCertificate
-                  - acm:RequestCertificate
                 Effect: Allow
                 Resource:
                   - !Sub 'arn:aws:acm:*:${AWS::AccountId}:certificate/*'
               - Action:
                   - acm:RequestCertificate
+                  - acm:ListTagsForCertificate
+                  - acm:ListCertificates
                 Effect: Allow
                 Resource:
                   - '*'
