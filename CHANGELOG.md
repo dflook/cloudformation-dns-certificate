@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - First release
 
-[1.5.2]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.5.1...1.6.0
+[1.6.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.5.1...1.6.0
 [1.5.1]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/a64051e43ae8696c898b6634fbe663abc4a87785...1.5.0
 [1.4.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/d0884b638cb2e7873aa7b7f9fda2a1bf377d8892...a64051e43ae8696c898b6634fbe663abc4a87785
