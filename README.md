@@ -2,28 +2,144 @@
 
 The cloudformation AWS::CertificateManager::Certificate resource can only create email validated certificates.
 
-This is a custom cloudformation resource which can additionally create DNS validated certificates for domains that use
+This is a cloudformation custom resource which can additionally create DNS validated certificates for domains that use
 a Route 53 hosted zone. It can also create certificates in a region other than the stack's region.
 
 ## Usage
 
-It should behave identically to [AWS::CertificateManager::Certificate](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html), 
-except for the differences described here.
+To use this custom resource, copy the CustomAcmCertificateLambda and CustomAcmCertificateLambdaExecutionRole resources
+into your template. You can then create certificate resources of Type: `Custom::DNSCertificate`.
 
-When using 'DNS' as the ValidationMethod the DomainValidation property becomes required, and the DomainValidationOption
-requires a HostedZoneId instead of a ValidationDomain. The HostedZoneId should be the zone to create the DNS validation 
-records in.
+This resource is also available as troposphere extension, in the [troposphere-dns-certificate](https://pypi.org/project/troposphere-dns-certificate/) package
 
-The additional 'Region' property can be used to set the region to create the certificate in.
-
+Remember to add a ServiceToken property to the resource which references the CustomAcmCertificateLambda arn.
 Certificates may take up to 30 minutes to be issued, but typically takes ~3 minutes. The Certificate resource remains as 
 CREATE_IN_PROGRESS until the certificate is issued.
 
-To use this custom resource, copy the CustomAcmCertificateLambda and CustomAcmCertificateLambdaExecutionRole resources
-into your template. You can then create certificate resources of Type: Custom::DNSCertificate using the
-properties you expect. Remember to add a ServiceToken property to the resource which references the CustomAcmCertificateLambda arn.
+### Differences from AWS::CertificateManager::Certificate
+It should behave similarly to [AWS::CertificateManager::Certificate](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html), 
+except for the differences described here.
 
-### Troposphere
+When using 'DNS' as the `ValidationMethod` the `DomainValidation` property becomes required, and the `DomainValidationOption`
+requires a `HostedZoneId` instead of a `ValidationDomain`. The `HostedZoneId` should be the zone to create the DNS validation 
+records in. You can also specify a `Route53RoleArn`, which is a role to assume before creating DNS validation records.
+
+The additional `Region` property can be used to set the region to create the certificate in.
+
+### Certificate Resource
+
+#### Syntax
+
+```yaml
+Type: Custom::DNSCertificate
+Properties: 
+  DomainName: String
+  DomainValidationOptions:
+    - DomainValidationOptions
+  SubjectAlternativeNames:
+    - String
+  Tags:
+    - Resource Tag
+  ValidationMethod: String
+  Region: String
+  ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'  
+```
+
+#### Properties
+
+* `DomainName`
+
+  Fully qualified domain name (FQDN) to issue the certificate for. Use an asterisk as a wildcard.
+
+  - Required: Yes
+  - Type: String
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
+  
+* `DomainValidationOptions`
+
+  Information for validating domain ownership. A DomainValidationOption should be present for the DomainName and all 
+  SubjectAlternativeNames. A DomainValidationOption for a parent domain can be used for names that have the same HostedZoneId.
+
+  - Required: Yes
+  - Type: List of `DomainValidationOption`
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)  
+
+* `SubjectAlternativeNames`
+
+  FQDNs to include in the Subject Alternative Name of the certificate.
+
+  - Required: No
+  - Type: List of String values
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)  
+
+* `Tags`
+
+  Tags for this certificate
+
+  - Required: No
+  - Type: [Resource Tag](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-resource-tags.html)
+  - Update requires: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)  
+
+* `ValidationMethod`
+
+  Method to use to validate domain ownership. This should be `DNS`.
+
+  - Required: No
+  - Default: `EMAIL`
+  - Type: String
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement) 
+
+* `Region`
+
+  The region to create the certificate in.
+
+  - Required: No
+  - Default: The Stack's region
+  - Type: String
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement) 
+
+#### Return value
+
+* Ref
+
+  When the [`Ref`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-ref.html) 
+  function is used on the logical ID of a Certificate resource the certificate ARN is returned.
+
+### DomainValidationOption
+
+#### Syntax
+
+```yaml
+DomainName: String
+HostedZoneId: String
+Route53RoleArn: String
+```
+
+#### Properties
+
+* `DomainName`
+
+  Fully qualified domain name of the validation request.
+
+  - Required: Yes
+  - Type: String
+  
+* `HostedZoneId`
+
+  The Route53 Hosted Zone to create validation records in.
+
+  - Required: Yes
+  - Type: String
+  
+* `Route53RoleArn`
+
+  The arn of an IAM Role to assume when creating DNS validation records. This can be used to create the records for a
+  Hosted Zone in another AWS account.
+
+  - Required: No
+  - Type: String
+ 
+## Troposphere
 
 If you are using troposphere you can install this resource as an extension using pip:
 
@@ -62,9 +178,7 @@ For example (in yaml): `!Ref 'ExampleCertificate'`
 
 ### SubjectAlternativeNames
 
-Additional names can be added to the certificate using the SubjectAlternativeNames property. A DomainValidationOptions entry should be 
-present for each name. A DomainValidationOptions for a parent domain can be used for names that have the same HostedZoneId.
-For example:
+Additional names can be added to the certificate using the SubjectAlternativeNames property.
 
 ```yaml
 ExampleCertificate:
@@ -184,7 +298,7 @@ Additionally you have to allow the assumption of this role by adding this statem
   Effect: Allow
 ```
 
-If you are using the troposphere library, this statement is added automatically. The full CustomAcmCertificateLambdaExecutionRole
+If you are using the troposphere extension, this statement is added automatically. The full CustomAcmCertificateLambdaExecutionRole
 for this example would look like:
 
 ```yaml
