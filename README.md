@@ -35,7 +35,7 @@ Type: Custom::DNSCertificate
 Properties: 
   DomainName: String
   DomainValidationOptions:
-    - DomainValidationOptions
+    - DomainValidationOption
   SubjectAlternativeNames:
     - String
   Tags:
