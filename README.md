@@ -303,7 +303,7 @@ for this example would look like:
 
 ```yaml
 CustomAcmCertificateLambdaExecutionRole:
-  Properties:
+Properties:
   AssumeRolePolicyDocument:
     Statement:
       - Action:
@@ -317,31 +317,34 @@ CustomAcmCertificateLambdaExecutionRole:
     - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
   Policies:
     - PolicyDocument:
-      Statement:
-        - Action:
-            - acm:AddTagsToCertificate
-            - acm:DeleteCertificate
-            - acm:DescribeCertificate
-            - acm:RemoveTagsFromCertificate
-            - acm:RequestCertificate
-          Effect: Allow
-          Resource:
-            - !Sub 'arn:aws:acm:*:${AWS::AccountId}:certificate/*'
-        - Action:
-            - acm:RequestCertificate
-          Effect: Allow
-          Resource:
-            - '*'
-        - Action:
-            - route53:ChangeResourceRecordSets
-          Effect: Allow
-          Resource:
-            - arn:aws:route53:::hostedzone/*
-        - Action:
+        Statement:
+          - Action:
+              - acm:AddTagsToCertificate
+              - acm:DeleteCertificate
+              - acm:DescribeCertificate
+              - acm:RemoveTagsFromCertificate
+            Effect: Allow
+            Resource:
+              - !Sub 'arn:aws:acm:*:${AWS::AccountId}:certificate/*'
+          - Action:
+              - acm:RequestCertificate
+              - acm:ListTagsForCertificate
+              - acm:ListCertificates
+            Effect: Allow
+            Resource:
+              - '*'
+          - Action:
+              - route53:ChangeResourceRecordSets
+            Effect: Allow
+            Resource:
+              - arn:aws:route53:::hostedzone/*
+          - Action:
             - sts:AssumeRole
-          Effect: Allow
-          Resource:
-            - arn:aws:iam::TRUSTING-ACCOUNT-ID:role/ACMRecordCreationRole
+            Effect: Allow
+            Resource:
+              - arn:aws:iam::TRUSTING-ACCOUNT-ID:role/ACMRecordCreationRole 
+        Version: '2012-10-17'
+      PolicyName: !Sub '${AWS::StackName}CustomAcmCertificateLambdaExecutionPolicy'
 ```
 
 The IAM role in the account with the hosted zone would look something like:

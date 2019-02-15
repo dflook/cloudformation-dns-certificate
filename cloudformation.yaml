@@ -8,53 +8,50 @@ Resources:
   CustomAcmCertificateLambda:
     Metadata:
       Source: https://github.com/dflook/cloudformation-dns-certificate
-      Version: 1.6.0
+      Version: 1.7.0
     Properties:
       Code:
-        ZipFile: "H=RuntimeError\nimport copy as L,hashlib as m,json,logging as B,time\
-          \ as S\nfrom boto3 import client as M\nfrom botocore.exceptions import ClientError\
-          \ as n,ParamValidationError as o\nfrom botocore.vendored import requests\
-          \ as p\nA=B.getLogger()\nA.setLevel(B.INFO)\nC=A.info\nT=A.exception\ndef\
-          \ handler(e,c):\n\tA1='None';A0='FAILED';z='stack-id';y='logical-id';x='\
-          \ missing';w='DNS';v='Region';l='RequestType';k='Old';j='Certificate';i=True;h='LogicalResourceId';g='DomainName';f='Route53RoleArn';X='StackId';W='Key';V='ValidationMethod';R='Status';Q='Reinvoked';P='cloudformation:';O='DomainValidationOptions';K='ResourceProperties';J='Value';I=None;G=False;F='CertificateArn';E='Tags';A='PhysicalResourceId';C(e)\n\
-          \tdef Y():\n\t\tA=L.copy(B);del A['ServiceToken'];A.pop(v,I);A.pop(E,I);A.pop(f,I)\n\
-          \t\tif V in B:\n\t\t\tif B[V]==w:\n\t\t\t\ttry:\n\t\t\t\t\tfor C in set([B[g]]+B.get('SubjectAlternativeNames',[])):d(C)\n\
-          \t\t\t\texcept KeyError:raise H(O+x)\n\t\t\t\tdel A[O]\n\t\treturn D.request_certificate(IdempotencyToken=t,**A)[F]\n\
-          \tdef q(a):\n\t\tG='Error';E='Failed to delete certificate';A=E\n\t\twhile\
-          \ c.get_remaining_time_in_millis()/1000>30:\n\t\t\ttry:D.delete_certificate(**{F:a});return\n\
-          \t\t\texcept n as B:\n\t\t\t\tT(E);C=B.response[G]['Code'];A=B.response[G]['Message']\n\
-          \t\t\t\tif C=='ResourceInUseException':S.sleep(5);continue\n\t\t\t\telif\
-          \ C in['ResourceNotFoundException','ValidationException']:return\n\t\t\t\
-          \traise\n\t\t\texcept o:T(E);return\n\t\traise H(A)\n\tdef r(a):\n\t\tif\
-          \ a.startswith('arn:'):return a\n\t\tfor C in D.get_paginator('list_certificates').paginate():\n\
-          \t\t\tfor A in C['CertificateSummaryList']:\n\t\t\t\tB={B[W]:B[J]for B in(D.list_tags_for_certificate(**{F:A[F]})[E])}\n\
-          \t\t\t\tif B.get(P+y)==e[h]and B.get(P+z)==e[X]:return A[F]\n\t\treturn\
-          \ a\n\tdef Z():\n\t\tif e.get(Q,G):raise H('Certificate not issued in time')\n\
-          \t\te[Q]=i;C(Q);C(e);M('lambda').invoke(FunctionName=c.invoked_function_arn,InvocationType='Event',Payload=json.dumps(e).encode())\n\
-          \tdef a(a):\n\t\twhile c.get_remaining_time_in_millis()/1000>30:\n\t\t\t\
-          A=D.describe_certificate(**{F:a})[j];C(A)\n\t\t\tif A[R]=='ISSUED':return\
-          \ i\n\t\t\telif A[R]==A0:raise H(A.get('FailureReason','Failed to issue\
-          \ certificate'))\n\t\t\tS.sleep(5)\n\t\treturn G\n\tdef s():A=L.copy(e[k+K]);A.pop(E,I);B=L.copy(e[K]);B.pop(E,I);return\
-          \ A!=B\n\tdef b():\n\t\tZ='Type';Y='Name';X='HostedZoneId';W='ValidationStatus';U='PENDING_VALIDATION';N='ResourceRecord'\n\
-          \t\tif V in B and B[V]==w:\n\t\t\tH=G\n\t\t\twhile not H:\n\t\t\t\tH=i;K=D.describe_certificate(**{F:e[A]})[j];C(K)\n\
-          \t\t\t\tif K[R]!=U:return\n\t\t\t\tfor E in K[O]:\n\t\t\t\t\tif W not in\
-          \ E or N not in E:H=G;continue\n\t\t\t\t\tif E[W]==U:P=d(E[g]);Q=P.get(f,B.get(f));L=M('sts').assume_role(RoleArn=Q,RoleSessionName=(j+e[h])[:64],DurationSeconds=900)['Credentials']if\
-          \ Q is not I else{};T=M('route53',aws_access_key_id=L.get('AccessKeyId'),aws_secret_access_key=L.get('SecretAccessKey'),aws_session_token=L.get('SessionToken')).change_resource_record_sets(**{X:P[X],'ChangeBatch':{'Comment':'Domain\
-          \ validation for '+e[A],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{Y:E[N][Y],Z:E[N][Z],'TTL':60,'ResourceRecords':[{J:E[N][J]}]}}]}});C(T)\n\
-          \t\t\t\tS.sleep(1)\n\tdef d(n):\n\t\tC='.';n=n.rstrip(C);D={A[g].rstrip(C):A\
-          \ for A in(B[O])};A=n.split(C)\n\t\twhile len(A):\n\t\t\tif C.join(A)in\
-          \ D:return D[C.join(A)]\n\t\t\tA=A[1:]\n\t\traise H(O+x+' for '+n)\n\tdef\
-          \ U(a):A=L.copy(e[K].get(E,[]));A+=[{W:P+y,J:e[h]},{W:P+z,J:e[X]},{W:P+'stack-name',J:e[X].split('/')[1]}];D.add_tags_to_certificate(**{F:a,E:A})\n\
-          \tdef N():C(e);A=p.put(e['ResponseURL'],json=e,headers={'content-type':''});C(A.content);A.raise_for_status()\n\
-          \ttry:\n\t\tt=m.new('md5',(e['RequestId']+e[X]).encode()).hexdigest();B=e[K];D=M('acm',region_name=B.get(v));e[R]='SUCCESS'\n\
-          \t\tif e[l]=='Create':\n\t\t\tif e.get(Q,G)is G:e[A]=A1;e[A]=Y();U(e[A])\n\
-          \t\t\tb()\n\t\t\tif a(e[A]):return N()\n\t\t\telse:return Z()\n\t\telif\
-          \ e[l]=='Delete':\n\t\t\tif e[A]!=A1:q(r(e[A]))\n\t\t\treturn N()\n\t\t\
-          elif e[l]=='Update':\n\t\t\tif s():\n\t\t\t\tif e.get(Q,G)is G:e[A]=Y();U(e[A])\n\
-          \t\t\t\tb()\n\t\t\t\tif not a(e[A]):return Z()\n\t\t\telse:\n\t\t\t\tif\
-          \ E in e[k+K]:D.remove_tags_from_certificate(**{F:e[A],E:e[k+K][E]})\n\t\
-          \t\t\tU(e[A])\n\t\t\treturn N()\n\t\telse:raise H('Unknown RequestType')\n\
-          \texcept Exception as u:T('');e[R]=A0;e['Reason']=str(u);return N()"
+        ZipFile: "T=RuntimeError\nimport copy,hashlib as s,json,logging as B,time\n\
+          from boto3 import client as L\nfrom botocore.exceptions import ClientError\
+          \ as t,ParamValidationError as u\nfrom botocore.vendored import requests\
+          \ as v\nA=B.getLogger()\nA.setLevel(B.INFO)\nD=A.info\nR=A.exception\ne=json.dumps\n\
+          M=copy.copy\nS=time.sleep\ndef handler(event,c):\n\tA8='OldResourceProperties';A7='Update';A6='Delete';A5='None';A4='acm';A3='FAILED';A2='properties';A1='stack-id';A0='logical-id';z='DNS';r='Old';q='Certificate';p='LogicalResourceId';o='DomainName';n='Route53RoleArn';m='Region';d='RequestType';b='Reinvoked';a='StackId';Z='DomainValidationOptions';Y='ValidationMethod';X=None;Q='Status';P='Key';O='';N=True;K='ResourceProperties';J='cloudformation:';I='Value';H=False;G='CertificateArn';F='Tags';C='PhysicalResourceId';A=event;f=c.get_remaining_time_in_millis;D(A)\n\
+          \tdef g():\n\t\tD=M(B)\n\t\tfor H in ['ServiceToken',m,F,n]:D.pop(H,X)\n\
+          \t\tif Y in B:\n\t\t\tif B[Y]==z:\n\t\t\t\tfor I in set([B[o]]+B.get('SubjectAlternativeNames',[])):k(I)\n\
+          \t\t\t\tdel D[Z]\n\t\tA[C]=E.request_certificate(IdempotencyToken=x,**D)[G];l()\n\
+          \tdef U(a):\n\t\twhile N:\n\t\t\ttry:E.delete_certificate(**{G:a});return\n\
+          \t\t\texcept t as B:\n\t\t\t\tR(O);A=B.response['Error']['Code']\n\t\t\t\
+          \tif A=='ResourceInUseException':\n\t\t\t\t\tif f()/1000<30:raise\n\t\t\t\
+          \t\tS(5);continue\n\t\t\t\tif A in['ResourceNotFoundException','ValidationException']:return\n\
+          \t\t\t\traise\n\t\t\texcept u:return\n\tdef V(props):\n\t\tfor H in E.get_paginator('list_certificates').paginate():\n\
+          \t\t\tfor B in H['CertificateSummaryList']:\n\t\t\t\tD(B);C={A[P]:A[I]for\
+          \ A in(E.list_tags_for_certificate(**{G:B[G]})[F])}\n\t\t\t\tif C.get(J+A0)==A[p]and\
+          \ C.get(J+A1)==A[a]and C.get(J+A2)==hash(props):return B[G]\n\tdef h():\n\
+          \t\tif A.get(b,H):raise T('Certificate not issued in time')\n\t\tA[b]=N;D(A);L('lambda').invoke(FunctionName=c.invoked_function_arn,InvocationType='Event',Payload=e(A).encode())\n\
+          \tdef i():\n\t\twhile f()/1000>30:\n\t\t\tB=E.describe_certificate(**{G:A[C]})[q];D(B)\n\
+          \t\t\tif B[Q]=='ISSUED':return N\n\t\t\telif B[Q]==A3:raise T(B.get('FailureReason',O))\n\
+          \t\t\tS(5)\n\t\treturn H\n\tdef w():B=M(A[r+K]);B.pop(F,X);C=M(A[K]);C.pop(F,X);return\
+          \ B!=C\n\tdef j():\n\t\tb='Type';a='Name';W='HostedZoneId';V='ValidationStatus';U='PENDING_VALIDATION';O='ResourceRecord'\n\
+          \t\tif Y in B and B[Y]==z:\n\t\t\tJ=H\n\t\t\twhile not J:\n\t\t\t\tJ=N;K=E.describe_certificate(**{G:A[C]})[q];D(K)\n\
+          \t\t\t\tif K[Q]!=U:return\n\t\t\t\tfor F in K[Z]:\n\t\t\t\t\tif V not in\
+          \ F or O not in F:J=H;continue\n\t\t\t\t\tif F[V]==U:P=k(F[o]);R=P.get(n,B.get(n));M=L('sts').assume_role(RoleArn=R,RoleSessionName=(q+A[p])[:64],DurationSeconds=900)['Credentials']if\
+          \ R is not X else{};T=L('route53',aws_access_key_id=M.get('AccessKeyId'),aws_secret_access_key=M.get('SecretAccessKey'),aws_session_token=M.get('SessionToken')).change_resource_record_sets(**{W:P[W],'ChangeBatch':{'Comment':'Domain\
+          \ validation for '+A[C],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{a:F[O][a],b:F[O][b],'TTL':60,'ResourceRecords':[{I:F[O][I]}]}}]}});D(T)\n\
+          \t\t\t\tS(1)\n\tdef k(n):\n\t\tC='.';n=n.rstrip(C);D={A[o].rstrip(C):A for\
+          \ A in(B[Z])};A=n.split(C)\n\t\twhile len(A):\n\t\t\tif C.join(A)in D:return\
+          \ D[C.join(A)]\n\t\t\tA=A[1:]\n\t\traise T(Z+' missing'+' for '+n)\n\thash=lambda\
+          \ v:s.new('md5',e(v,sort_keys=N).encode()).hexdigest()\n\tdef l():B=M(A[K].get(F,[]));B+=[{P:J+A0,I:A[p]},{P:J+A1,I:A[a]},{P:J+'stack-name',I:A[a].split('/')[1]},{P:J+A2,I:hash(A[K])}];E.add_tags_to_certificate(**{G:A[C],F:B})\n\
+          \tdef W():D(A);B=v.put(A['ResponseURL'],json=A,headers={'content-type':O});B.raise_for_status()\n\
+          \ttry:\n\t\tx=hash(A['RequestId']+A[a]);B=A[K];E=L(A4,region_name=B.get(m));A[Q]='SUCCESS'\n\
+          \t\tif A[d]=='Create':\n\t\t\tif A.get(b,H)is H:A[C]=A5;g()\n\t\t\tj()\n\
+          \t\t\tif not i():return h()\n\t\telif A[d]==A6:\n\t\t\tif A[C]!=A5:\n\t\t\
+          \t\tif A[C].startswith('arn:'):U(A[C])\n\t\t\t\telse:U(V(B))\n\t\telif A[d]==A7:\n\
+          \t\t\tif w():\n\t\t\t\tD(A7)\n\t\t\t\tif V(B)==A[C]:\n\t\t\t\t\ttry:E=L(A4,region_name=A[A8].get(m));D(A6);U(V(A[A8]))\n\
+          \t\t\t\t\texcept:R(O)\n\t\t\t\t\treturn W()\n\t\t\t\tif A.get(b,H)is H:g()\n\
+          \t\t\t\tj()\n\t\t\t\tif not i():return h()\n\t\t\telse:\n\t\t\t\tif F in\
+          \ A[r+K]:E.remove_tags_from_certificate(**{G:A[C],F:A[r+K][F]})\n\t\t\t\t\
+          l()\n\t\telse:raise T(A[d])\n\t\treturn W()\n\texcept Exception as y:R(O);A[Q]=A3;A['Reason']=str(y);return\
+          \ W()"
       Description: Cloudformation custom resource for DNS validated certificates
       Handler: index.handler
       Role: !GetAtt 'CustomAcmCertificateLambdaExecutionRole.Arn'
