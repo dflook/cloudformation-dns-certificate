@@ -202,58 +202,61 @@ def handler(event, c):
 
         """
 
-        if 'ValidationMethod' in props and props['ValidationMethod'] == 'DNS':
+        if props.get('ValidationMethod') != 'DNS':
+            return
 
-            done = False
-            while not done:
-                done = True
+        while True:
+            cert = acm.describe_certificate(**{'CertificateArn': event['PhysicalResourceId']})['Certificate']
+            log_info(cert)
 
-                cert = acm.describe_certificate(**{'CertificateArn': event['PhysicalResourceId']})['Certificate']
-                log_info(cert)
+            if cert['Status'] != 'PENDING_VALIDATION':
+                return
 
-                if cert['Status'] != 'PENDING_VALIDATION':
-                    return
+            if not [
+                validation_option
+                for validation_option in cert.get('DomainValidationOptions', [{}])
+                if 'ValidationStatus' not in validation_option
+                   or 'ResourceRecord' not in validation_option
+            ]:
+                # All validation options have a status and resource record to create
+                break
 
-                for validation_option in cert['DomainValidationOptions']:
+            time.sleep(1)
 
-                    if 'ValidationStatus' not in validation_option or 'ResourceRecord' not in validation_option:
-                        done = False
-                        continue
+        for validation_option in cert['DomainValidationOptions']:
 
-                    if validation_option['ValidationStatus'] == 'PENDING_VALIDATION':
-                        hosted_zone = get_zone_for(validation_option['DomainName'])
+            if validation_option['ValidationStatus'] == 'PENDING_VALIDATION':
+                hosted_zone = get_zone_for(validation_option['DomainName'])
 
-                        role_arn = hosted_zone.get('Route53RoleArn', props.get('Route53RoleArn'))
+                role_arn = hosted_zone.get('Route53RoleArn', props.get('Route53RoleArn'))
 
-                        sts = client('sts').assume_role(
-                            RoleArn=role_arn,
-                            RoleSessionName=('Certificate' + event['LogicalResourceId'])[:64],
-                            DurationSeconds=900,
-                        )['Credentials'] if role_arn is not None else {}
+                sts = client('sts').assume_role(
+                    RoleArn=role_arn,
+                    RoleSessionName=('Certificate' + event['LogicalResourceId'])[:64],
+                    DurationSeconds=900,
+                )['Credentials'] if role_arn is not None else {}
 
-                        route53 = client('route53',
-                             aws_access_key_id=sts.get('AccessKeyId'),
-                             aws_secret_access_key=sts.get('SecretAccessKey'),
-                             aws_session_token=sts.get('SessionToken'),
-                         ).change_resource_record_sets(**{
-                            'HostedZoneId': hosted_zone['HostedZoneId'],
-                            'ChangeBatch': {
-                                'Comment': 'Domain validation for ' + event['PhysicalResourceId'],
-                                'Changes': [{
-                                    'Action': 'UPSERT',
-                                    'ResourceRecordSet': {
-                                        'Name': validation_option['ResourceRecord']['Name'],
-                                        'Type': validation_option['ResourceRecord']['Type'],
-                                        'TTL': 60,
-                                        'ResourceRecords': [{'Value': validation_option['ResourceRecord']['Value']}],
-                                    },
-                                }],
-                            }},
-                        )
+                route53 = client('route53',
+                     aws_access_key_id=sts.get('AccessKeyId'),
+                     aws_secret_access_key=sts.get('SecretAccessKey'),
+                     aws_session_token=sts.get('SessionToken'),
+                 ).change_resource_record_sets(**{
+                    'HostedZoneId': hosted_zone['HostedZoneId'],
+                    'ChangeBatch': {
+                        'Comment': 'Domain validation for ' + event['PhysicalResourceId'],
+                        'Changes': [{
+                            'Action': 'UPSERT',
+                            'ResourceRecordSet': {
+                                'Name': validation_option['ResourceRecord']['Name'],
+                                'Type': validation_option['ResourceRecord']['Type'],
+                                'TTL': 60,
+                                'ResourceRecords': [{'Value': validation_option['ResourceRecord']['Value']}],
+                            },
+                        }],
+                    }},
+                )
 
-                        log_info(route53)
-
-                sleep(1)
+                log_info(route53)
 
     def get_zone_for(n):
         """

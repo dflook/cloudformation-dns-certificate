@@ -7,7 +7,7 @@ def create_template():
     template = Template(
         Description='DNS Validated ACM Certificate Example'
     )
-    template.add_version()
+    template.set_version()
 
     certificate = template.add_resource(certificatemanager.Certificate(
         'ExampleCertificate',
