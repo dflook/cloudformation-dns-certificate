@@ -8,7 +8,7 @@ Resources:
   CustomAcmCertificateLambda:
     Metadata:
       Source: https://github.com/dflook/cloudformation-dns-certificate
-      Version: 1.7.0
+      Version: 1.7.1
     Properties:
       Code:
         ZipFile: "T=RuntimeError\nimport copy,hashlib as t,json,logging as B,time\
