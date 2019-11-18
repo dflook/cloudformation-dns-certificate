@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2019-11-18
+
+### Fixed
+- No longer use undocumented vendored requests library from boto3
+
 ## [1.7.1] - 2019-08-06
 
 ### Fixed
@@ -62,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - First release
 
+[1.7.2]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.1...1.7.2
 [1.7.1]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.0...1.7.1
 [1.7.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.6.0...1.7.0
 [1.6.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.5.1...1.6.0
