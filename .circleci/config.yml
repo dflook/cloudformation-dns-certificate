@@ -7,23 +7,6 @@ jobs:
     steps:
     - checkout
 
-    - run:
-        name: Add signing key
-        command: |
-          echo $SIGNING_KEY | base64 -d > private.key
-          gpg --import private.key
-
-    - run:
-        name: twine upload
-        command: |
-          pip3 install --upgrade setuptools wheel twine pip
-          python3 setup.py sdist bdist_wheel
-
-          twine upload --sign --skip-existing dist/*
-
-    - store_artifacts:
-        path: dist/
-
 workflows:
   build:
     jobs:
