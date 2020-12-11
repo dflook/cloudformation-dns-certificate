@@ -1,9 +1,9 @@
 # Cloudformation DNS Validated Certificate Resource
 
-The cloudformation AWS::CertificateManager::Certificate resource can only create email validated certificates.
+This is a cloudformation custom resource which is an enhancement of the [AWS::CertificateManager::Certificate](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html) resource.
 
-This is a cloudformation custom resource which can additionally create DNS validated certificates for domains that use
-a Route 53 hosted zone. It can also create certificates in a region other than the stack's region.
+It allows creating a certificate in a region different from the stack's region (e.g. `us-east-1` for cloudfront),
+and allows for creating a certificate for a Route 53 hosted zone in another AWS account.
 
 ## Usage
 
@@ -20,11 +20,10 @@ CREATE_IN_PROGRESS until the certificate is issued.
 It should behave similarly to [AWS::CertificateManager::Certificate](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html), 
 except for the differences described here.
 
-When using 'DNS' as the `ValidationMethod` the `DomainValidation` property becomes required, and the `DomainValidationOption`
-requires a `HostedZoneId` instead of a `ValidationDomain`. The `HostedZoneId` should be the zone to create the DNS validation 
-records in. You can also specify a `Route53RoleArn`, which is a role to assume before creating DNS validation records.
-
 The additional `Region` property can be used to set the region to create the certificate in.
+
+The [DomainValidationOption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-certificatemanager-certificate-domainvalidationoption.html) has an additional property `Route53RoleArn`, which is a role to assume before creating DNS validation records.
+This lets you create a certificate for a hosted zone in another account.
 
 ### Certificate Resource
 
