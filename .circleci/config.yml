@@ -5,7 +5,10 @@ jobs:
     docker:
     - image: python:3
     steps:
-    - checkout
+    - run:
+        name: do nothing
+        command: |
+          echo "OK"
 
 workflows:
   build:
