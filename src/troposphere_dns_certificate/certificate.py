@@ -121,14 +121,15 @@ def handler(e, c):  # handler(event, context, /)
             for certificate in page['CertificateSummaryList']:
                 log_info(certificate)
 
-                tags = {tag['Key']: tag['Value'] for tag in
-                        acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
+                if p['DomainName'] == certificate['DomainName']:
+                    tags = {tag['Key']: tag['Value'] for tag in
+                            acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
 
-                if (tags.get('cloudformation:' + 'logical-id') == e['LogicalResourceId'] and
-                        tags.get('cloudformation:' + 'stack-id') == e['StackId'] and
-                        tags.get('cloudformation:' + 'properties') == hash_func(p)
-                ):
-                    return certificate['CertificateArn']
+                    if (tags.get('cloudformation:' + 'logical-id') == e['LogicalResourceId'] and
+                            tags.get('cloudformation:' + 'stack-id') == e['StackId'] and
+                            tags.get('cloudformation:' + 'properties') == hash_func(p)
+                    ):
+                        return certificate['CertificateArn']
 
     def reinvoke():
         """
@@ -344,7 +345,6 @@ def handler(e, c):  # handler(event, context, /)
         elif e['RequestType'] == 'Update':
 
             if replace_cert():
-                log_info('Update')
 
                 if find_certificate(props) == e['PhysicalResourceId']:
                     # This is an update cancel request.
@@ -352,7 +352,6 @@ def handler(e, c):  # handler(event, context, /)
                     # Try and delete the new certificate that is no longer required
                     try:
                         acm = client('acm', region_name=e['OldResourceProperties'].get('Region'))
-                        log_info('Delete')
                         delete_certificate(find_certificate(e['OldResourceProperties']))
                     except:
                         log_exception('')
