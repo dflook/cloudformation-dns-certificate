@@ -1,0 +1,22 @@
+name: Release
+
+on:
+  release:
+    types: [released]
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Upload
+        env:
+          TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+        run: |
+          pip3 install --upgrade setuptools wheel twine
+          python3 setup.py sdist bdist_wheel
+          python3 -m twine upload --non-interactive dist/*
