@@ -25,6 +25,8 @@ sleep = time.sleep
 
 json_dumps = lambda j: json.dumps(j, sort_keys=True).encode()
 
+REINVOKED = 'R'
+
 def handler(e, c):  # handler(event, context, /)
     """
     Cloudformation custom resource handler
@@ -121,14 +123,15 @@ def handler(e, c):  # handler(event, context, /)
             for certificate in page['CertificateSummaryList']:
                 log_info(certificate)
 
-                tags = {tag['Key']: tag['Value'] for tag in
-                        acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
+                if p['DomainName'].lower() == certificate['DomainName']:
+                    tags = {tag['Key']: tag['Value'] for tag in
+                            acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
 
-                if (tags.get('cloudformation:' + 'logical-id') == e['LogicalResourceId'] and
-                        tags.get('cloudformation:' + 'stack-id') == e['StackId'] and
-                        tags.get('cloudformation:' + 'properties') == hash_func(p)
-                ):
-                    return certificate['CertificateArn']
+                    if (tags.get('cloudformation:' + 'logical-id') == e['LogicalResourceId'] and
+                            tags.get('cloudformation:' + 'stack-id') == e['StackId'] and
+                            tags.get('cloudformation:' + 'properties') == hash_func(p)
+                    ):
+                        return certificate['CertificateArn']
 
     def reinvoke():
         """
@@ -142,10 +145,10 @@ def handler(e, c):  # handler(event, context, /)
         """
 
         # Only Reinvoke once, which is a total of 30 minutes running
-        if e.get('Reinvoked', False):
+        if REINVOKED in e:
             raise RuntimeError('Certificate not issued in time')
 
-        e['Reinvoked'] = True
+        e[REINVOKED] = REINVOKED
 
         log_info(e)
         client('lambda').invoke(
@@ -324,7 +327,7 @@ def handler(e, c):  # handler(event, context, /)
 
         if e['RequestType'] == 'Create':
 
-            if e.get('Reinvoked', False) is False:
+            if REINVOKED not in e:
                 e['PhysicalResourceId'] = 'None'
                 request_cert()
 
@@ -360,7 +363,7 @@ def handler(e, c):  # handler(event, context, /)
                     # return success for the update - nothing changed
                     return send_response()
 
-                if e.get('Reinvoked', False) is False:
+                if REINVOKED not in e:
                     request_cert()
 
                 validate()
