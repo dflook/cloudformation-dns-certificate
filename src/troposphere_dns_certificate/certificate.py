@@ -25,6 +25,8 @@ sleep = time.sleep
 
 json_dumps = lambda j: json.dumps(j, sort_keys=True).encode()
 
+REINVOKED = 'R'
+
 def handler(e, c):  # handler(event, context, /)
     """
     Cloudformation custom resource handler
@@ -121,7 +123,7 @@ def handler(e, c):  # handler(event, context, /)
             for certificate in page['CertificateSummaryList']:
                 log_info(certificate)
 
-                if p['DomainName'] == certificate['DomainName']:
+                if p['DomainName'].lower() == certificate['DomainName']:
                     tags = {tag['Key']: tag['Value'] for tag in
                             acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
 
@@ -143,10 +145,10 @@ def handler(e, c):  # handler(event, context, /)
         """
 
         # Only Reinvoke once, which is a total of 30 minutes running
-        if e.get('Reinvoked', False):
+        if REINVOKED in e:
             raise RuntimeError('Certificate not issued in time')
 
-        e['Reinvoked'] = True
+        e[REINVOKED] = REINVOKED
 
         log_info(e)
         client('lambda').invoke(
@@ -325,7 +327,7 @@ def handler(e, c):  # handler(event, context, /)
 
         if e['RequestType'] == 'Create':
 
-            if e.get('Reinvoked', False) is False:
+            if REINVOKED not in e:
                 e['PhysicalResourceId'] = 'None'
                 request_cert()
 
@@ -345,6 +347,7 @@ def handler(e, c):  # handler(event, context, /)
         elif e['RequestType'] == 'Update':
 
             if replace_cert():
+                log_info('Update')
 
                 if find_certificate(props) == e['PhysicalResourceId']:
                     # This is an update cancel request.
@@ -352,6 +355,7 @@ def handler(e, c):  # handler(event, context, /)
                     # Try and delete the new certificate that is no longer required
                     try:
                         acm = client('acm', region_name=e['OldResourceProperties'].get('Region'))
+                        log_info('Delete')
                         delete_certificate(find_certificate(e['OldResourceProperties']))
                     except:
                         log_exception('')
@@ -359,7 +363,7 @@ def handler(e, c):  # handler(event, context, /)
                     # return success for the update - nothing changed
                     return send_response()
 
-                if e.get('Reinvoked', False) is False:
+                if REINVOKED not in e:
                     request_cert()
 
                 validate()
