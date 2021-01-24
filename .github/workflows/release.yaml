@@ -8,6 +8,8 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    container:
+      image: python:3
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -17,6 +19,6 @@ jobs:
           TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
         run: |
-          pip3 install --upgrade setuptools wheel twine
-          python3 setup.py sdist bdist_wheel
-          python3 -m twine upload --non-interactive dist/*
+          pip install --upgrade setuptools wheel twine
+          python setup.py sdist bdist_wheel
+          twine upload --non-interactive dist/*
