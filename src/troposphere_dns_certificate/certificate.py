@@ -27,18 +27,18 @@ json_dumps = lambda j: json.dumps(j, sort_keys=True).encode()
 
 REINVOKED = 'R'
 
-def handler(e, c):  # handler(event, context, /)
+def handler(event, context, /):
     """
     Cloudformation custom resource handler
 
-    :param e: lambda event payload
-    :param c: lambda execution context
+    :param event: lambda event payload
+    :param context: lambda execution context
 
     """
 
-    get_remaining_time_in_millis = c.get_remaining_time_in_millis
+    get_remaining_time_in_millis = context.get_remaining_time_in_millis
 
-    log_info(e)
+    log_info(event)
 
     def request_cert():
         """
@@ -64,26 +64,26 @@ def handler(e, c):  # handler(event, context, /)
 
                 del api_request['DomainValidationOptions']
 
-        e['PhysicalResourceId'] = acm.request_certificate(
+        event['PhysicalResourceId'] = acm.request_certificate(
             IdempotencyToken=i_token,
             **api_request
         )['CertificateArn']
         add_tags()
 
-    def delete_certificate(a):  # delete_certificate(arn, /)
+    def delete_certificate(arn, /):
         """
         Delete a certificate
 
         Attempts to delete a certificate.
 
-        :param str a: Arn of the certificate to delete
+        :param str arn: Arn of the certificate to delete
 
         """
 
         while True:
 
             try:
-                acm.delete_certificate(**{'CertificateArn': a})
+                acm.delete_certificate(**{'CertificateArn': arn})
                 return
             except ClientError as exception:
                 log_exception('')
@@ -107,13 +107,13 @@ def handler(e, c):  # handler(event, context, /)
                 # invalid arn
                 return
 
-    def find_certificate(p):  # find_certificate(props, /)
+    def find_certificate(props, /):
         """
         Find a certificate that belongs to this stack
 
         If the certificate is not found, returns None.
 
-        :param dict p: The properties of the certificate to find
+        :param dict props: The properties of the certificate to find
         :returns: The arn of the certificate
         :rtype: str or None
 
@@ -123,13 +123,13 @@ def handler(e, c):  # handler(event, context, /)
             for certificate in page['CertificateSummaryList']:
                 log_info(certificate)
 
-                if p['DomainName'].lower() == certificate['DomainName']:
+                if props['DomainName'].lower() == certificate['DomainName']:
                     tags = {tag['Key']: tag['Value'] for tag in
                             acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
 
-                    if (tags.get('cloudformation:' + 'logical-id') == e['LogicalResourceId'] and
-                            tags.get('cloudformation:' + 'stack-id') == e['StackId'] and
-                            tags.get('cloudformation:' + 'properties') == hash_func(p)
+                    if (tags.get('cloudformation:' + 'logical-id') == event['LogicalResourceId'] and
+                            tags.get('cloudformation:' + 'stack-id') == event['StackId'] and
+                            tags.get('cloudformation:' + 'properties') == hash_func(props)
                     ):
                         return certificate['CertificateArn']
 
@@ -145,16 +145,16 @@ def handler(e, c):  # handler(event, context, /)
         """
 
         # Only Reinvoke once, which is a total of 30 minutes running
-        if REINVOKED in e:
+        if REINVOKED in event:
             raise RuntimeError('Certificate not issued in time')
 
-        e[REINVOKED] = REINVOKED
+        event[REINVOKED] = REINVOKED
 
-        log_info(e)
+        log_info(event)
         client('lambda').invoke(
-            FunctionName=c.invoked_function_arn,
+            FunctionName=context.invoked_function_arn,
             InvocationType='Event',
-            Payload=json_dumps(e)
+            Payload=json_dumps(event)
         )
 
     def wait_for_issuance():
@@ -170,7 +170,7 @@ def handler(e, c):  # handler(event, context, /)
 
         while (get_remaining_time_in_millis() / 1000) > 30:
 
-            cert = acm.describe_certificate(**{'CertificateArn': e['PhysicalResourceId']})['Certificate']
+            cert = acm.describe_certificate(**{'CertificateArn': event['PhysicalResourceId']})['Certificate']
             log_info(cert)
 
             if cert['Status'] == 'ISSUED':
@@ -192,10 +192,10 @@ def handler(e, c):  # handler(event, context, /)
 
         """
 
-        old = shallow_copy(e['Old' + 'ResourceProperties'])
+        old = shallow_copy(event['Old' + 'ResourceProperties'])
         old.pop('Tags', None)
 
-        new = shallow_copy(e['ResourceProperties'])
+        new = shallow_copy(event['ResourceProperties'])
         new.pop('Tags', None)
 
         return old != new
@@ -210,7 +210,7 @@ def handler(e, c):  # handler(event, context, /)
             return
 
         while True:
-            cert = acm.describe_certificate(**{'CertificateArn': e['PhysicalResourceId']})['Certificate']
+            cert = acm.describe_certificate(**{'CertificateArn': event['PhysicalResourceId']})['Certificate']
             log_info(cert)
 
             if cert['Status'] != 'PENDING_VALIDATION':
@@ -236,7 +236,7 @@ def handler(e, c):  # handler(event, context, /)
 
                 sts = client('sts').assume_role(
                     RoleArn=role_arn,
-                    RoleSessionName=('Certificate' + e['LogicalResourceId'])[:64],
+                    RoleSessionName=('Certificate' + event['LogicalResourceId'])[:64],
                     DurationSeconds=900,
                 )['Credentials'] if role_arn is not None else {}
 
@@ -247,7 +247,7 @@ def handler(e, c):  # handler(event, context, /)
                  ).change_resource_record_sets(**{
                     'HostedZoneId': hosted_zone['HostedZoneId'],
                     'ChangeBatch': {
-                        'Comment': 'Domain validation for ' + e['PhysicalResourceId'],
+                        'Comment': 'Domain validation for ' + event['PhysicalResourceId'],
                         'Changes': [{
                             'Action': 'UPSERT',
                             'ResourceRecordSet': {
@@ -262,19 +262,19 @@ def handler(e, c):  # handler(event, context, /)
 
                 log_info(route53)
 
-    def get_zone_for(n):  # get_zone_for(name, /)
+    def get_zone_for(name, /):
         """
         Return the hosted zone to use for validating a name
 
-        :param str n: The name to validate
+        :param str name: The name to validate
         :rtype: dict
 
         """
 
-        n = n.rstrip('.')
+        name = name.rstrip('.')
         zones = {domain['DomainName'].rstrip('.'): domain for domain in props['DomainValidationOptions']}
 
-        parts = n.split('.')
+        parts = name.split('.')
 
         while len(parts):
             if '.'.join(parts) in zones:
@@ -282,7 +282,7 @@ def handler(e, c):  # handler(event, context, /)
 
             parts = parts[1:]
 
-        raise RuntimeError('DomainValidationOptions' + ' missing for ' + n)
+        raise RuntimeError('DomainValidationOptions' + ' missing for ' + name)
 
     hash_func = lambda v: hashlib.new('md5', json_dumps(v)).hexdigest()
 
@@ -294,15 +294,15 @@ def handler(e, c):  # handler(event, context, /)
 
         """
 
-        tags = shallow_copy(e['ResourceProperties'].get('Tags', []))
+        tags = shallow_copy(event['ResourceProperties'].get('Tags', []))
         tags += [
-            {'Key': 'cloudformation:' + 'logical-id', 'Value': e['LogicalResourceId']},
-            {'Key': 'cloudformation:' + 'stack-id', 'Value': e['StackId']},
-            {'Key': 'cloudformation:' + 'stack-name', 'Value': e['StackId'].split('/')[1]},
-            {'Key': 'cloudformation:' + 'properties', 'Value': hash_func(e['ResourceProperties'])}
+            {'Key': 'cloudformation:' + 'logical-id', 'Value': event['LogicalResourceId']},
+            {'Key': 'cloudformation:' + 'stack-id', 'Value': event['StackId']},
+            {'Key': 'cloudformation:' + 'stack-name', 'Value': event['StackId'].split('/')[1]},
+            {'Key': 'cloudformation:' + 'properties', 'Value': hash_func(event['ResourceProperties'])}
         ]
 
-        acm.add_tags_to_certificate(**{'CertificateArn': e['PhysicalResourceId'], 'Tags': tags})
+        acm.add_tags_to_certificate(**{'CertificateArn': event['PhysicalResourceId'], 'Tags': tags})
 
     def send_response():
         """
@@ -310,25 +310,25 @@ def handler(e, c):  # handler(event, context, /)
 
         """
 
-        log_info(e)
+        log_info(event)
 
-        response = urlopen(Request(e['ResponseURL'], json_dumps(e), {'content-type': ''}, method='PUT'))
+        response = urlopen(Request(event['ResponseURL'], json_dumps(event), {'content-type': ''}, method='PUT'))
 
         if response.status != 200:
             raise Exception(response)
 
     try:
-        i_token = hash_func(e['RequestId'] + e['StackId'])
-        props = e['ResourceProperties']
+        i_token = hash_func(event['RequestId'] + event['StackId'])
+        props = event['ResourceProperties']
 
         acm = client('acm', region_name=props.get('Region'))
 
-        e['Status'] = 'SUCCESS'
+        event['Status'] = 'SUCCESS'
 
-        if e['RequestType'] == 'Create':
+        if event['RequestType'] == 'Create':
 
-            if REINVOKED not in e:
-                e['PhysicalResourceId'] = 'None'
+            if REINVOKED not in event:
+                event['PhysicalResourceId'] = 'None'
                 request_cert()
 
             validate()
@@ -336,34 +336,34 @@ def handler(e, c):  # handler(event, context, /)
             if not wait_for_issuance():
                 return reinvoke()
 
-        elif e['RequestType'] == 'Delete':
+        elif event['RequestType'] == 'Delete':
 
-            if e['PhysicalResourceId'] != 'None':
-                if e['PhysicalResourceId'].startswith('arn:'):
-                    delete_certificate(e['PhysicalResourceId'])
+            if event['PhysicalResourceId'] != 'None':
+                if event['PhysicalResourceId'].startswith('arn:'):
+                    delete_certificate(event['PhysicalResourceId'])
                 else:
                     delete_certificate(find_certificate(props))
 
-        elif e['RequestType'] == 'Update':
+        elif event['RequestType'] == 'Update':
 
             if replace_cert():
                 log_info('Update')
 
-                if find_certificate(props) == e['PhysicalResourceId']:
+                if find_certificate(props) == event['PhysicalResourceId']:
                     # This is an update cancel request.
 
                     # Try and delete the new certificate that is no longer required
                     try:
-                        acm = client('acm', region_name=e['OldResourceProperties'].get('Region'))
+                        acm = client('acm', region_name=event['OldResourceProperties'].get('Region'))
                         log_info('Delete')
-                        delete_certificate(find_certificate(e['OldResourceProperties']))
+                        delete_certificate(find_certificate(event['OldResourceProperties']))
                     except:
                         log_exception('')
 
                     # return success for the update - nothing changed
                     return send_response()
 
-                if REINVOKED not in e:
+                if REINVOKED not in event:
                     request_cert()
 
                 validate()
@@ -371,21 +371,21 @@ def handler(e, c):  # handler(event, context, /)
                 if not wait_for_issuance():
                     return reinvoke()
             else:
-                if 'Tags' in e['Old' + 'ResourceProperties']:
+                if 'Tags' in event['Old' + 'ResourceProperties']:
                     acm.remove_tags_from_certificate(**{
-                        'CertificateArn': e['PhysicalResourceId'],
-                        'Tags': e['Old' + 'ResourceProperties']['Tags']
+                        'CertificateArn': event['PhysicalResourceId'],
+                        'Tags': event['Old' + 'ResourceProperties']['Tags']
                     })
 
                 add_tags()
 
         else:
-            raise RuntimeError(e['RequestType'])
+            raise RuntimeError(event['RequestType'])
 
         return send_response()
 
     except Exception as ex:
         log_exception('')
-        e['Status'] = 'FAILED'
-        e['Reason'] = str(ex)
+        event['Status'] = 'FAILED'
+        event['Reason'] = str(ex)
         return send_response()

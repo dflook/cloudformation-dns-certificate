@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.4] - 2022-05-19
+
+### Changed
+- Updated lambda runtime to Python 3.9. AWS Lambda support for Python 3.6 is coming to an end.
+
 ## [1.7.3] - 2021-01-24
 
 ### Fixed
@@ -72,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - First release
 
+[1.7.4]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.3...1.7.4
 [1.7.3]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.2...1.7.3
 [1.7.2]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.1...1.7.2
 [1.7.1]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.0...1.7.1

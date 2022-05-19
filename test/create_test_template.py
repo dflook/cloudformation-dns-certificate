@@ -11,7 +11,7 @@ def create_template(zone_name, zone_id, zone_arn, additional_zone_name, addition
     template = Template(
         Description='DNS Validated ACM Certificate Test'
     )
-    template.add_version()
+    template.set_version()
 
     name = ''.join(random.choices(string.ascii_uppercase, k=5))
 

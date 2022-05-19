@@ -81,7 +81,7 @@ def add_helpers(template):
             awslambda.Function(
                 CERTIFICATE_LAMBDA,
                 Code=awslambda.Code(ZipFile=code),
-                Runtime='python3.6',
+                Runtime='python3.9',
                 Handler='index.handler',
                 Timeout=900,
                 Role=GetAtt(LAMBDA_ROLE, 'Arn'),
