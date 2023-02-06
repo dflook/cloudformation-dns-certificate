@@ -324,7 +324,7 @@ CustomAcmCertificateLambdaExecutionRole:
                 - acm:RemoveTagsFromCertificate
               Effect: Allow
               Resource:
-                - !Sub 'arn:aws:acm:*:${AWS::AccountId}:certificate/*'
+                - !Sub 'arn:${AWS::Partition}:acm:*:${AWS::AccountId}:certificate/*'
             - Action:
                 - acm:RequestCertificate
                 - acm:ListTagsForCertificate

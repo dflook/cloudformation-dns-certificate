@@ -55,7 +55,7 @@ def add_helpers(template):
                                         Action('acm', 'RemoveTagsFromCertificate'),
 
                                     ],
-                                    Resource=[Sub('arn:aws:acm:*:${AWS::AccountId}:certificate/*')],
+                                    Resource=[Sub('arn:${AWS::Partition}:acm:*:${AWS::AccountId}:certificate/*')],
                                 ),
                                 Statement(
                                     Effect=Allow,
