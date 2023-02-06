@@ -41,4 +41,4 @@ if __name__ == '__main__':
         f.write(template.to_yaml())
 
     with open('cloudformation.json', 'w') as f:
-        f.write(template.to_json())
+        f.write(template.to_json(indent=4))
