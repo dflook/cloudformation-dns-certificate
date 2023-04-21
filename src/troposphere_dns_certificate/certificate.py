@@ -233,7 +233,7 @@ def handler(event, context, /):
                 hosted_zone = get_zone_for(validation_option['DomainName'])
 
                 role_arn = hosted_zone.get('Route53RoleArn', props.get('Route53RoleArn'))
-                external_id = hosted_zone.get('ExternalId')
+                external_id = hosted_zone.get('Route53RoleExternalId')
 
                 sts_params = {
                     'RoleArn': role_arn,
