@@ -100,6 +100,7 @@ class DomainValidationOption(AWSProperty):
         'ValidationDomain': (str, False),
         'HostedZoneId': (str, False),
         'Route53RoleArn': (str, False),
+        'Route53RoleExternalId': (str, False)
     }
 
 

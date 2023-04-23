@@ -233,11 +233,19 @@ def handler(event, context, /):
                 hosted_zone = get_zone_for(validation_option['DomainName'])
 
                 role_arn = hosted_zone.get('Route53RoleArn', props.get('Route53RoleArn'))
+                external_id = hosted_zone.get('Route53RoleExternalId')
+
+                sts_params = {
+                    'RoleArn': role_arn,
+                    'RoleSessionName': ('Certificate' + event['LogicalResourceId'])[:64],
+                    'DurationSeconds': 900,
+                }
+
+                if external_id:
+                    sts_params['ExternalId'] = external_id
 
                 sts = client('sts').assume_role(
-                    RoleArn=role_arn,
-                    RoleSessionName=('Certificate' + event['LogicalResourceId'])[:64],
-                    DurationSeconds=900,
+                    **sts_params
                 )['Credentials'] if role_arn is not None else {}
 
                 route53 = client('route53',

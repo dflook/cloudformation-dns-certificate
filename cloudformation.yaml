@@ -8,7 +8,7 @@ Resources:
   CustomAcmCertificateLambda:
     Metadata:
       Source: https://github.com/dflook/cloudformation-dns-certificate
-      Version: 1.7.4
+      Version: 1.7.5
     Properties:
       Code:
         ZipFile: "k=Exception\nT=True\nS=RuntimeError\nimport copy,hashlib,json,logging as B,time\nfrom boto3 import client as K\nfrom botocore.exceptions import ClientError as A3,ParamValidationError as\
@@ -21,10 +21,10 @@ Resources:
           \t\tC={A[P]:A[H]for A in E.list_tags_for_certificate(**{G:B[G]})[F]}\n\t\t\t\t\tif C.get(I+u)==A[h]and C.get(I+v)==A[V]and C.get(I+w)==c(J):return B[G]\n\tdef o():\n\t\tif L in A:raise S('Certificate\
           \ not issued in time')\n\t\tA[L]=L;D(A);K('lambda').invoke(FunctionName=l.invoked_function_arn,InvocationType='Event',Payload=Z(A))\n\tdef p():\n\t\twhile m()/1000>30:\n\t\t\tB=E.describe_certificate(**{G:A[C]})[i];D(B)\n\
           \t\t\tif B[Q]=='ISSUED':return T\n\t\t\telif B[Q]==x:raise S(B.get('FailureReason',O))\n\t\t\tY(5)\n\t\treturn False\n\tdef A5():B=R(A[j+J]);B.pop(F,U);C=R(A[J]);C.pop(F,U);return B!=C\n\tdef\
-          \ q():\n\t\tX='Type';W='Name';V='HostedZoneId';S='ValidationStatus';R='PENDING_VALIDATION';J='ResourceRecord'\n\t\tif B.get(g)!=t:return\n\t\twhile T:\n\t\t\tI=E.describe_certificate(**{G:A[C]})[i];D(I)\n\
-          \t\t\tif I[Q]!=R:return\n\t\t\tif not[A for A in I.get(N,[{}])if S not in A or J not in A]:break\n\t\t\tY(1)\n\t\tfor F in I[N]:\n\t\t\tif F[S]==R:O=r(F[M]);P=O.get(f,B.get(f));L=K('sts').assume_role(RoleArn=P,RoleSessionName=(i+A[h])[:64],DurationSeconds=900)['Credentials']if\
-          \ P is not U else{};Z=K('route53',aws_access_key_id=L.get('AccessKeyId'),aws_secret_access_key=L.get('SecretAccessKey'),aws_session_token=L.get('SessionToken')).change_resource_record_sets(**{V:O[V],'ChangeBatch':{'Comment':'Domain\
-          \ validation for '+A[C],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{W:F[J][W],X:F[J][X],'TTL':60,'ResourceRecords':[{H:F[J][H]}]}}]}});D(Z)\n\tdef r(D):\n\t\tC='.';D=D.rstrip(C);E={A[M].rstrip(C):A\
+          \ q():\n\t\ta='Type';Z='Name';X='HostedZoneId';W='ValidationStatus';V='PENDING_VALIDATION';J='ResourceRecord'\n\t\tif B.get(g)!=t:return\n\t\twhile T:\n\t\t\tI=E.describe_certificate(**{G:A[C]})[i];D(I)\n\
+          \t\t\tif I[Q]!=V:return\n\t\t\tif not[A for A in I.get(N,[{}])if W not in A or J not in A]:break\n\t\t\tY(1)\n\t\tfor F in I[N]:\n\t\t\tif F[W]==V:\n\t\t\t\tL=r(F[M]);P=L.get(f,B.get(f));R=L.get('Route53RoleExternalId');S={'RoleArn':P,'RoleSessionName':(i+A[h])[:64],'DurationSeconds':900}\n\
+          \t\t\t\tif R:S['ExternalId']=R\n\t\t\t\tO=K('sts').assume_role(**S)['Credentials']if P is not U else{};b=K('route53',aws_access_key_id=O.get('AccessKeyId'),aws_secret_access_key=O.get('SecretAccessKey'),aws_session_token=O.get('SessionToken')).change_resource_record_sets(**{X:L[X],'ChangeBatch':{'Comment':'Domain\
+          \ validation for '+A[C],'Changes':[{'Action':'UPSERT','ResourceRecordSet':{Z:F[J][Z],a:F[J][a],'TTL':60,'ResourceRecords':[{H:F[J][H]}]}}]}});D(b)\n\tdef r(D):\n\t\tC='.';D=D.rstrip(C);E={A[M].rstrip(C):A\
           \ for A in B[N]};A=D.split(C)\n\t\twhile len(A):\n\t\t\tif C.join(A)in E:return E[C.join(A)]\n\t\t\tA=A[1:]\n\t\traise S(N+' missing for '+D)\n\tc=lambda v:hashlib.new('md5',Z(v)).hexdigest()\n\
           \tdef s():B=R(A[J].get(F,[]));B+=[{P:I+u,H:A[h]},{P:I+v,H:A[V]},{P:I+'stack-name',H:A[V].split('/')[1]},{P:I+w,H:c(A[J])}];E.add_tags_to_certificate(**{G:A[C],F:B})\n\tdef d():\n\t\tD(A);B=urlopen(Request(A['ResponseURL'],Z(A),{'content-type':O},method='PUT'))\n\
           \t\tif B.status!=200:raise k(B)\n\ttry:\n\t\tA6=c(A['RequestId']+A[V]);B=A[J];E=K(y,region_name=B.get(e));A[Q]='SUCCESS'\n\t\tif A[W]=='Create':\n\t\t\tif L not in A:A[C]=z;n()\n\t\t\tq()\n\t\t\

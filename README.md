@@ -268,6 +268,8 @@ In some cases the account owning the hosted zone might be a different one than t
 To support this you can specify the domain validation option property `Route53RoleArn` with a role-ARN that should be 
 assumed before creating the records required for certificate validation.
 
+Optionally, you can also specify an `Route53RoleExternalId` (if required by `Route53RoleArn`). **Note:** This is generally recommended for better security.
+
 If a top-level Route53RoleArn property is specified it will be assumed when validating domains that don't contain a
 Route53RoleArn domain validation option property.
 
@@ -280,6 +282,7 @@ ExampleCertificate:
       - DomainName: test.example.com
         HostedZoneId: Z2KZ5YTUFZNC7H
         Route53RoleArn: arn:aws:iam::TRUSTING-ACCOUNT-ID:role/ACMRecordCreationRole
+        Route53RoleExternalId: SECRET-KEY
     Tags:
       - Key: Name
         Value: Example Certificate
@@ -360,6 +363,9 @@ ACMRecordCreationRole:
             AWS:
               - arn:aws:iam::TRUSTED-ACCOUNT-ID:root
           Effect: Allow
+          Condition:
+            StringEquals:
+              'sts:ExternalId': SECRET-KEY
       Version: '2012-10-17'
     Policies:
       - PolicyName: 'ACMRecordCreation'
