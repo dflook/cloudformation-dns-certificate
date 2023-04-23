@@ -112,6 +112,7 @@ Properties:
 DomainName: String
 HostedZoneId: String
 Route53RoleArn: String
+Route53RoleExternalId: String
 ```
 
 #### Properties
@@ -137,7 +138,15 @@ Route53RoleArn: String
 
   - Required: No
   - Type: String
- 
+
+* `Route53RoleExternalId`
+
+  An External ID to use when assuming the Route53RoleArn. This can be set if required by the trust policy of the role. 
+  See https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html for details of using ExternalIds.
+
+  - Required: No
+  - Type: String
+
 ## Troposphere
 
 If you are using troposphere you can install this resource as an extension using pip:
@@ -268,7 +277,8 @@ In some cases the account owning the hosted zone might be a different one than t
 To support this you can specify the domain validation option property `Route53RoleArn` with a role-ARN that should be 
 assumed before creating the records required for certificate validation.
 
-Optionally, you can also specify an `Route53RoleExternalId` (if required by `Route53RoleArn`). **Note:** This is generally recommended for better security.
+Optionally, you can also specify a `Route53RoleExternalId` that will be used when assuming the role specified by `Route53RoleArn`.
+This would be required if the trust policy of the role requires an external ID.
 
 If a top-level Route53RoleArn property is specified it will be assumed when validating domains that don't contain a
 Route53RoleArn domain validation option property.
@@ -282,7 +292,7 @@ ExampleCertificate:
       - DomainName: test.example.com
         HostedZoneId: Z2KZ5YTUFZNC7H
         Route53RoleArn: arn:aws:iam::TRUSTING-ACCOUNT-ID:role/ACMRecordCreationRole
-        Route53RoleExternalId: SECRET-KEY
+        Route53RoleExternalId: EXTERNAL-ID
     Tags:
       - Key: Name
         Value: Example Certificate
@@ -365,7 +375,7 @@ ACMRecordCreationRole:
           Effect: Allow
           Condition:
             StringEquals:
-              'sts:ExternalId': SECRET-KEY
+              'sts:ExternalId': EXTERNAL-ID
       Version: '2012-10-17'
     Policies:
       - PolicyName: 'ACMRecordCreation'

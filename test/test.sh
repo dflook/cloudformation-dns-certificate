@@ -2,14 +2,15 @@
 
 set -e
 
-HOSTED_ZONE_NAME=example.com
-HOSTED_ZONE_ID=ABCDEFG123456
-HOSTED_ZONE_ARN=arn:aws:iam::11111111111:role/Route53Role
-HOSTED_ZONE2_NAME=example.org
-HOSTED_ZONE2_ID=ZXCVBNM09876
-HOSTED_ZONE2_ARN=arn:aws:iam::22222222222:role/Route53Role
+HOSTED_ZONE_NAME=cdc.flooktech.com
+HOSTED_ZONE_ID=Z0443612URLHTLJWWUZK
+HOSTED_ZONE_ARN=arn:aws:iam::11111111111:role/test_zone_role
+HOSTED_ZONE2_NAME=cdc-2.flooktech.com
+HOSTED_ZONE2_ID=Z0048252X4QLBJFAOVNJ
+HOSTED_ZONE2_ARN=arn:aws:iam::22222222222:role/additional_test_zone_role
+HOSTED_ZONE2_EXTERNAL_ID=abcdefgh
 
-./create_test_template.py $HOSTED_ZONE_NAME $HOSTED_ZONE_ID $HOSTED_ZONE_ARN $HOSTED_ZONE2_NAME $HOSTED_ZONE2_ID $HOSTED_ZONE2_ARN> test.yaml
+./create_test_template.py $HOSTED_ZONE_NAME $HOSTED_ZONE_ID $HOSTED_ZONE_ARN $HOSTED_ZONE2_NAME $HOSTED_ZONE2_ID $HOSTED_ZONE2_ARN $HOSTED_ZONE2_EXTERNAL_ID> test.yaml
 
 for region in $(aws ec2 describe-regions --query "Regions[].{Name:RegionName}" --output text)
 do

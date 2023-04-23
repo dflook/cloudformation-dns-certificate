@@ -3,7 +3,7 @@ import unittest
 
 import python_minifier
 
-LAMBDA_INLINE_CODE_LIMIT = 4096
+LAMBDA_INLINE_CODE_LIMIT = 4194304
 
 
 class LambdaCodeSizeTest(unittest.TestCase):

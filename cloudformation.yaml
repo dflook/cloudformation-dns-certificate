@@ -8,7 +8,7 @@ Resources:
   CustomAcmCertificateLambda:
     Metadata:
       Source: https://github.com/dflook/cloudformation-dns-certificate
-      Version: 1.7.5
+      Version: 1.8.0
     Properties:
       Code:
         ZipFile: "k=Exception\nT=True\nS=RuntimeError\nimport copy,hashlib,json,logging as B,time\nfrom boto3 import client as K\nfrom botocore.exceptions import ClientError as A3,ParamValidationError as\
