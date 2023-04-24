@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+:warning: This version requires an additional `acm:UpdateCertificateOptions` permission to be added to the Lambda execution role.
+Ensure your `CustomAcmCertificateLambdaExecutionRole` is up to date with the example in `cloudformation.[yaml|json]`.
+
+### Added
+Missing certificate property compared to `AWS::CertificateManager::Certificate`:
+
+- `CertificateTransparencyLoggingPreference` has been added to control certificate transparency logging.
+
+New enhancements over `AWS::CertificateManager::Certificate`:
+
+- A new `KeyAlgorithm` certificate property has been added to specify the key algorithm to use.
+  The default is `RSA_2048`, which is the same as `AWS::CertificateManager::Certificate`. Not all algorithms are supported by all clients, AWS Services or regions.
+
+### Changed
+- A DomainValidationOption is no longer required for all domains in the certificate. If a DomainValidationOption is not specified for a domain, no validation record will be created for that domain.
+  The validation records will need to be created through some other means. The certificate resource will be in the `CREATE_IN_PROGRESS` state until the validation records are created.
+
+- The certificate resource will not necessarily be replaced on changes to the `DomainValidationOptions` property. 
+  Only changes to `DomainName` or `HostedZoneId` in `DomainValidationOptions` will cause the certificate to be replaced.
+
+### Fixed
+- Failures that could occur when creating or updating large numbers of certificates in parallel.
+
 ## [1.8.0] - 2023-04-23
 
 ### Added

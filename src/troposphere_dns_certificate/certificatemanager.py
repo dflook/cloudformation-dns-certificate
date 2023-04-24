@@ -53,6 +53,7 @@ def add_helpers(template):
                                         Action('acm', 'DeleteCertificate'),
                                         Action('acm', 'DescribeCertificate'),
                                         Action('acm', 'RemoveTagsFromCertificate'),
+                                        Action('acm', 'UpdateCertificateOptions'),
 
                                     ],
                                     Resource=[Sub('arn:${AWS::Partition}:acm:*:${AWS::AccountId}:certificate/*')],
@@ -81,7 +82,7 @@ def add_helpers(template):
             awslambda.Function(
                 CERTIFICATE_LAMBDA,
                 Code=awslambda.Code(ZipFile=code),
-                Runtime='python3.9',
+                Runtime='python3.10',
                 Handler='index.handler',
                 Timeout=900,
                 Role=GetAtt(LAMBDA_ROLE, 'Arn'),
@@ -108,6 +109,8 @@ class Certificate(CustomResource, TroposphereExtension):
     resource_type = 'Custom::DNSCertificate'
 
     props = {
+        'CertificateAuthorityArn': (str, False),
+        'CertificateTransparencyLoggingPreference': (str, False),
         'DomainName': (str, True),
         'DomainValidationOptions': ([(DomainValidationOption, dict)], False),
         'SubjectAlternativeNames': ([str], False),
@@ -115,6 +118,7 @@ class Certificate(CustomResource, TroposphereExtension):
         'ValidationMethod': (str, False),
         'Route53RoleArn': (str, False),
         'Region': (str, False),
+        'KeyAlgorithm': (str, False)
     }
 
     def add_extension(self, template, add_resource):

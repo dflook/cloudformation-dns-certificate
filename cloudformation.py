@@ -12,6 +12,7 @@ def create_template():
     certificate = template.add_resource(certificatemanager.Certificate(
         'ExampleCertificate',
         ValidationMethod='DNS',
+        CertificateAuthorityArn='asdvc',
         DomainName='test.example.com',
         DomainValidationOptions=[
             certificatemanager.DomainValidationOption(

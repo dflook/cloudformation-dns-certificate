@@ -18,6 +18,7 @@ from urllib.request import Request, urlopen
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+log_warning = logger.warning
 log_info = logger.info
 log_exception = logger.exception
 shallow_copy = copy.copy
@@ -51,8 +52,11 @@ def handler(event, context, /):
 
         api_request = shallow_copy(props)
 
-        for key in ['ServiceToken', 'Region', 'Tags', 'Route53RoleArn']:
+        for key in ['ServiceToken', 'Region', 'Tags', 'Route53RoleArn', 'CertificateTransparencyLoggingPreference']:
             api_request.pop(key, None)
+
+        if 'CertificateTransparencyLoggingPreference' in props:
+            api_request['Options'] = {'CertificateTransparencyLoggingPreference': props['CertificateTransparencyLoggingPreference']}
 
         if 'ValidationMethod' in props:
             if props['ValidationMethod'] == 'DNS':
@@ -60,15 +64,25 @@ def handler(event, context, /):
                 # Check that we have all the hosted zone information we need to validate
                 # before we create the certificate
                 for name in set([props['DomainName']] + props.get('SubjectAlternativeNames', [])):
-                    get_zone_for(name)
+                    if get_zone_for(name) is None:
+                        log_warning(f'No DomainValidationOption found for {name} - the validation records will need to be created manually')
 
-                del api_request['DomainValidationOptions']
+                if 'DomainValidationOptions' in api_request:
+                    del api_request['DomainValidationOptions']
+
+        tags = shallow_copy(event['ResourceProperties'].get('Tags', []))
+        tags += [
+            {'Key': 'cloudformation:logical-id', 'Value': event['LogicalResourceId']},
+            {'Key': 'cloudformation:stack-id', 'Value': event['StackId']},
+            {'Key': 'cloudformation:stack-name', 'Value': event['StackId'].split('/')[1]},
+            {'Key': 'cloudformation:properties', 'Value': hash_func(event['ResourceProperties'])}
+        ]
 
         event['PhysicalResourceId'] = acm.request_certificate(
             IdempotencyToken=i_token,
+            Tags=tags,
             **api_request
         )['CertificateArn']
-        add_tags()
 
     def delete_certificate(arn, /):
         """
@@ -123,13 +137,15 @@ def handler(event, context, /):
             for certificate in page['CertificateSummaryList']:
                 log_info(certificate)
 
-                if props['DomainName'].lower() == certificate['DomainName']:
+                # In certain cases the DomainName property may not be present yet at the time we called list_certificates
+                # We can go ahead and check the certificate tags anyway.
+                if 'DomainName' not in props or props['DomainName'].lower() == certificate['DomainName']:
                     tags = {tag['Key']: tag['Value'] for tag in
                             acm.list_tags_for_certificate(**{'CertificateArn': certificate['CertificateArn']})['Tags']}
 
-                    if (tags.get('cloudformation:' + 'logical-id') == event['LogicalResourceId'] and
-                            tags.get('cloudformation:' + 'stack-id') == event['StackId'] and
-                            tags.get('cloudformation:' + 'properties') == hash_func(props)
+                    if (tags.get('cloudformation:logical-id') == event['LogicalResourceId'] and
+                            tags.get('cloudformation:stack-id') == event['StackId'] and
+                            tags.get('cloudformation:properties') == hash_func(props)
                     ):
                         return certificate['CertificateArn']
 
@@ -186,28 +202,50 @@ def handler(event, context, /):
         """
         Does the update require replacement of the certificate?
 
-        Only tags can be updated without replacement
+        Only Tags and CertificateTransparencyLoggingPreference can be updated without replacement
 
         :rtype: bool
 
         """
 
-        old = shallow_copy(event['Old' + 'ResourceProperties'])
+        def replace_validation_option(validation_options: list[dict[str, str]]) -> list[dict[str, str]]:
+            options = []
+            for validation_option in validation_options:
+                options.append({
+                    'DomainName': validation_option.get('DomainName'),
+                    'HostedZoneId': validation_option.get('HostedZoneId'),
+                })
+            return options
+
+        old = shallow_copy(event['OldResourceProperties'])
         old.pop('Tags', None)
+        old.pop('CertificateTransparencyLoggingPreference', None)
+        old['DomainValidationOptions'] = replace_validation_option(old.get('DomainValidationOptions', []))
 
         new = shallow_copy(event['ResourceProperties'])
         new.pop('Tags', None)
+        new.pop('CertificateTransparencyLoggingPreference', None)
+        new['DomainValidationOptions'] = replace_validation_option(new.get('DomainValidationOptions', []))
 
         return old != new
 
     def validate():
         """
         Add DNS validation records for a certificate
-
         """
 
         if props.get('ValidationMethod') != 'DNS':
             return
+
+        def ready_to_validate(cert) -> bool:
+            if 'DomainValidationOptions' not in cert:
+                return False
+
+            for validation_option in cert['DomainValidationOptions']:
+                if 'ValidationStatus' not in validation_option or 'ResourceRecord' not in validation_option:
+                    return False
+
+            return True
 
         while True:
             cert = acm.describe_certificate(**{'CertificateArn': event['PhysicalResourceId']})['Certificate']
@@ -216,21 +254,19 @@ def handler(event, context, /):
             if cert['Status'] != 'PENDING_VALIDATION':
                 return
 
-            if not [
-                validation_option
-                for validation_option in cert.get('DomainValidationOptions', [{}])
-                if 'ValidationStatus' not in validation_option
-                   or 'ResourceRecord' not in validation_option
-            ]:
+            if ready_to_validate(cert):
                 # All validation options have a status and resource record to create
                 break
-
-            sleep(1)
+            else:
+                sleep(1)
 
         for validation_option in cert['DomainValidationOptions']:
 
             if validation_option['ValidationStatus'] == 'PENDING_VALIDATION':
                 hosted_zone = get_zone_for(validation_option['DomainName'])
+                if hosted_zone is None:
+                    log_info(f'No DomainValidationOption found for domain {validation_option["DomainName"]}, validation records must be created manually')
+                    continue
 
                 role_arn = hosted_zone.get('Route53RoleArn', props.get('Route53RoleArn'))
                 external_id = hosted_zone.get('Route53RoleExternalId')
@@ -265,7 +301,7 @@ def handler(event, context, /):
                                 'ResourceRecords': [{'Value': validation_option['ResourceRecord']['Value']}],
                             },
                         }],
-                    }},
+                    }}
                 )
 
                 log_info(route53)
@@ -280,7 +316,7 @@ def handler(event, context, /):
         """
 
         name = name.rstrip('.')
-        zones = {domain['DomainName'].rstrip('.'): domain for domain in props['DomainValidationOptions']}
+        zones = {domain['DomainName'].rstrip('.'): domain for domain in props.get('DomainValidationOptions', [])}
 
         parts = name.split('.')
 
@@ -290,27 +326,7 @@ def handler(event, context, /):
 
             parts = parts[1:]
 
-        raise RuntimeError('DomainValidationOptions' + ' missing for ' + name)
-
     hash_func = lambda v: hashlib.new('md5', json_dumps(v)).hexdigest()
-
-    def add_tags():
-        """
-        Add tags from the ResourceProperties to the Certificate
-
-        Also adds logical-id, stack-id, stack-name and properties tags, which are used by the custom resource.
-
-        """
-
-        tags = shallow_copy(event['ResourceProperties'].get('Tags', []))
-        tags += [
-            {'Key': 'cloudformation:' + 'logical-id', 'Value': event['LogicalResourceId']},
-            {'Key': 'cloudformation:' + 'stack-id', 'Value': event['StackId']},
-            {'Key': 'cloudformation:' + 'stack-name', 'Value': event['StackId'].split('/')[1]},
-            {'Key': 'cloudformation:' + 'properties', 'Value': hash_func(event['ResourceProperties'])}
-        ]
-
-        acm.add_tags_to_certificate(**{'CertificateArn': event['PhysicalResourceId'], 'Tags': tags})
 
     def send_response():
         """
@@ -347,6 +363,7 @@ def handler(event, context, /):
         elif event['RequestType'] == 'Delete':
 
             if event['PhysicalResourceId'] != 'None':
+
                 if event['PhysicalResourceId'].startswith('arn:'):
                     delete_certificate(event['PhysicalResourceId'])
                 else:
@@ -355,7 +372,7 @@ def handler(event, context, /):
         elif event['RequestType'] == 'Update':
 
             if replace_cert():
-                log_info('Update')
+                log_info('Replacement required')
 
                 if find_certificate(props) == event['PhysicalResourceId']:
                     # This is an update cancel request.
@@ -378,14 +395,28 @@ def handler(event, context, /):
 
                 if not wait_for_issuance():
                     return reinvoke()
+
             else:
-                if 'Tags' in event['Old' + 'ResourceProperties']:
+                log_info('Update in place')
+                if 'Tags' in event['OldResourceProperties']:
                     acm.remove_tags_from_certificate(**{
                         'CertificateArn': event['PhysicalResourceId'],
-                        'Tags': event['Old' + 'ResourceProperties']['Tags']
+                        'Tags': event['OldResourceProperties']['Tags']
                     })
 
-                add_tags()
+                if 'Tags' in event['ResourceProperties']:
+                    acm.add_tags_to_certificate(**{
+                        'CertificateArn': event['PhysicalResourceId'],
+                        'Tags': event['ResourceProperties'].get('Tags', [])
+                    })
+
+                if event['ResourceProperties'].get('CertificateTransparencyLoggingPreference') != event['OldResourceProperties'].get('CertificateTransparencyLoggingPreference'):
+                    acm.update_certificate_options(**{
+                        'CertificateArn': event['PhysicalResourceId'],
+                        'Options': {
+                            'CertificateTransparencyLoggingPreference': event['ResourceProperties'].get('CertificateTransparencyLoggingPreference', 'ENABLED'),
+                        }
+                    })
 
         else:
             raise RuntimeError(event['RequestType'])

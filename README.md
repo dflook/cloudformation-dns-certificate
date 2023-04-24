@@ -4,6 +4,7 @@ This is a cloudformation custom resource which is an enhancement of the [AWS::Ce
 
 It allows creating a certificate in a region different from the stack's region (e.g. `us-east-1` for cloudfront),
 and allows for creating a certificate for a Route 53 hosted zone in another AWS account.
+It also allows for setting the key algorithm.
 
 ## Usage
 
@@ -41,6 +42,8 @@ Properties:
     - Resource Tag
   ValidationMethod: String
   Region: String
+  CertificateTransparencyLoggingPreference: String
+  KeyAlgorithm: String
   ServiceToken: !GetAtt 'CustomAcmCertificateLambda.Arn'  
 ```
 
@@ -61,7 +64,7 @@ Properties:
 
   - Required: Yes
   - Type: List of `DomainValidationOption`
-  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)  
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement) if a HostedZoneId changes
 
 * `SubjectAlternativeNames`
 
@@ -97,6 +100,27 @@ Properties:
   - Type: String
   - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement) 
 
+* `CertificateTransparencyLoggingPreference`
+
+  Certificate Transparency Logging Preference. This may be 'ENABLED' or 'DISABLED'.
+    
+  - Required: No
+  - Default: `ENABLED`
+  - Type: String
+  - Update requires: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)  
+
+* `KeyAlgorithm`
+
+  The algorithm that will be used to generate the key pair used by the certificate.
+  Currently, this may be `RSA_2048`, `EC_prime256v1`, or `EC_secp384r1` for new certificates.
+
+  :warning: Not all algorithms are supported by all clients, AWS services or regions.
+
+  - Required: No
+  - Default: `RSA_2048`
+  - Type: String
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
+
 #### Return value
 
 * Ref
@@ -123,6 +147,7 @@ Route53RoleExternalId: String
 
   - Required: Yes
   - Type: String
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
   
 * `HostedZoneId`
 
@@ -130,6 +155,7 @@ Route53RoleExternalId: String
 
   - Required: Yes
   - Type: String
+  - Update requires: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement) 
   
 * `Route53RoleArn`
 
@@ -138,6 +164,7 @@ Route53RoleExternalId: String
 
   - Required: No
   - Type: String
+  - Update requires: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)  
 
 * `Route53RoleExternalId`
 
@@ -146,6 +173,7 @@ Route53RoleExternalId: String
 
   - Required: No
   - Type: String
+  - Update requires: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)
 
 ## Troposphere
 
@@ -335,6 +363,7 @@ CustomAcmCertificateLambdaExecutionRole:
                 - acm:DeleteCertificate
                 - acm:DescribeCertificate
                 - acm:RemoveTagsFromCertificate
+                - acm:UpdateCertificateOptions
               Effect: Allow
               Resource:
                 - !Sub 'arn:${AWS::Partition}:acm:*:${AWS::AccountId}:certificate/*'
