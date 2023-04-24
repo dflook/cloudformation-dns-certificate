@@ -26,6 +26,8 @@ The additional `Region` property can be used to set the region to create the cer
 The [DomainValidationOption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-certificatemanager-certificate-domainvalidationoption.html) has a additional properties `Route53RoleArn` and `Route53RoleExternalId` which allow assuming a role before creating DNS validation records.
 This lets you create a certificate for a hosted zone in another account.
 
+The additional `KeyAlgorithm` property allows setting the key algorithm used to generate the key pair used by the certificate.
+
 ### Certificate Resource
 
 #### Syntax
