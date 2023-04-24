@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [2.0.0] - 2023-04-24
 
 :warning: This version requires an additional `acm:UpdateCertificateOptions` permission to be added to the Lambda execution role.
 Ensure your `CustomAcmCertificateLambdaExecutionRole` is up to date with the example in `cloudformation.[yaml|json]`.
@@ -112,6 +112,7 @@ New enhancements over `AWS::CertificateManager::Certificate`:
 ### Added
 - First release
 
+[2.0.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.8.0...2.0.0
 [1.8.0]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.5...1.8.0
 [1.7.5]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.4...1.7.5
 [1.7.4]: https://github.com/dflook/cloudformation-dns-certificate/compare/1.7.3...1.7.4
