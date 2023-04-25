@@ -62,7 +62,10 @@ Properties:
 * `DomainValidationOptions`
 
   Information for validating domain ownership. A DomainValidationOption should be present for the DomainName and all 
-  SubjectAlternativeNames. A DomainValidationOption for a parent domain can be used for names that have the same HostedZoneId.
+  SubjectAlternativeNames to create validation records. A DomainValidationOption for a parent domain can be used for names that have the same HostedZoneId.
+  
+  If a DomainValidationOption is not present for a domain, validation records for that domain will not be created. They must be created through other means.
+  The resource will remain in the `CREATE_IN_PROGRESS` state until the records can be validated.
 
   - Required: Yes
   - Type: List of `DomainValidationOption`
